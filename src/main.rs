@@ -1,12 +1,21 @@
 extern crate fs2;
 
-use rocket::{
-    fairing::AdHoc, http::Status, request::{FromRequest, Outcome, Request}, tokio, State
-};
+use crate::backend::{ActionType, AppState, Interaction, User};
 use fs2::FileExt;
+use rocket::{
+    State,
+    fairing::AdHoc,
+    http::Status,
+    request::{FromRequest, Outcome, Request},
+    tokio,
+};
 use serde::{Deserialize, Serialize};
-use std::fs::OpenOptions;
-use crate::backend::{AppState, User};
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::{self, BufRead, Read, Write},
+    sync::Arc,
+};
 
 mod backend;
 mod util;
@@ -14,28 +23,14 @@ mod util;
 #[macro_use]
 extern crate rocket;
 
-#[derive(Serialize, Deserialize)]
-struct TestRequest {
-    key: String
-}
-
 #[derive(Debug)]
 pub enum RequestError {
-    InvalidResult
+    InvalidResult,
 }
 
-#[post("/test", format="json", data="<data>")]
-fn test(user: User, data: String) -> Result<String, Status> {
-    let request = serde_json::from_str::<TestRequest>(data.as_str());
-
-    if let Err(_) = request {
-        return Result::Err(Status::BadRequest);
-    }
-    
-    return match serde_json::to_string::<TestRequest>(&request.unwrap()) {
-        Ok(str) => Result::Ok(str),
-        Err(_) => Result::Err(Status::InternalServerError)
-    };
+#[post("/update", format = "json", data = "<data>")]
+fn test(interaction: Interaction, data: String) -> Result<String, Status> {
+    interaction.state.actions[&ActionType::Update](interaction, data)
 }
 
 #[derive(Debug)]
@@ -45,19 +40,20 @@ pub enum ApiKeyError {
 }
 
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for User {
+impl<'r> FromRequest<'r> for Interaction<'r> {
     type Error = ApiKeyError;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let state = req.guard::<&State<AppState>>().await;
+        let state = req.guard::<&State<Arc<AppState>>>().await;
         if let Some(state) = state.succeeded() {
             let keys = state.api_keys.lock().unwrap();
 
             return match req.headers().get_one("x-api-key") {
                 None => Outcome::Error((Status::BadRequest, ApiKeyError::Missing)),
-                Some(key) if keys.contains_key(key) => {
-                    Outcome::Success(keys.get(key).unwrap().clone())
-                }
+                Some(key) if keys.contains_key(key) => Outcome::Success(Interaction {
+                    user: keys.get(key).unwrap().clone(),
+                    state: state,
+                }),
                 Some(_) => Outcome::Error((Status::Unauthorized, ApiKeyError::Invalid)),
             };
         }
@@ -66,39 +62,78 @@ impl<'r> FromRequest<'r> for User {
     }
 }
 
-
-
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
-    let path = std::env::current_exe()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("config.json");
-    let file: std::fs::File = OpenOptions::new().read(true).write(true).create(true).open(path).expect("Failed to open config file.");
-    file.lock_exclusive().expect("Could not lock the config file, is it open in another program?");
+    let executable_path = std::env::current_exe().unwrap();
+    let main_path = executable_path.parent().unwrap();
+    let file: std::fs::File = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(main_path.join("config.json"))
+        .expect("Failed to open config file.");
+    let boards_file: std::fs::File = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(main_path.join("boards.json"))
+        .expect("Failed to open boards file.");
 
-    let state = AppState::new(&file);
+    boards_file
+        .try_lock_exclusive()
+        .expect("Boards file in use by another program, could not lock.");
 
-    let _ = fs2::FileExt::unlock(&file);
+    let state = AppState::new(&file, boards_file);
+
+    drop(file);
+
+    let port_arc = Arc::new(state);
+    let state_arc = port_arc.clone();
+    let loop_arc = port_arc.clone();
+    let port = port_arc.port;
 
     let r = rocket::build()
-        .configure(rocket::Config::figment().merge(("port", state.port)))
-        .manage(state)
+        .configure(rocket::Config::figment().merge(("port", port)))
+        .manage(state_arc)
         .mount("/", routes![test])
-        .attach(AdHoc::on_liftoff("Save Loop", |r| {
+        .attach(AdHoc::on_liftoff("Save Loop", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {
-                    backend::save_loop().await;
+                    backend::save_loop(loop_arc).await;
                 });
             })
         }))
-        .ignite().await?;
+        .attach(AdHoc::on_liftoff("CLI", |_r| {
+            Box::pin(async move {
+                tokio::spawn(async move {
+                    let mut stdin = io::stdin().lock();
+                    let stdout = io::stdout();
+                    let mut s = String::new();
+                    loop {
+                        let _ = write!(&mut stdout.lock(), "> ");
+                        stdout.lock().flush().unwrap();
+                        s = "".to_string();
+                        let res = stdin.read_line(&mut s);
+                        if res.is_err() {
+                            break;
+                        }
 
-    
+                        let params: Vec<&str> = s.trim().split(" ").collect();
+
+                        if params.len() == 0 {
+                            continue;
+                        }
+
+                        let _ = writeln!(&mut stdout.lock(), "Cmd: {0}", params.get(0).unwrap());
+                        
+                    }
+                });
+            })
+        }))
+        .ignite()
+        .await?;
 
     r.launch().await?;
-
 
     Ok(())
 }

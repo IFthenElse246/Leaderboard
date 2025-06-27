@@ -1,11 +1,4 @@
 {
     "port": 3895,
-    "save_interval": 300,
-    "leaderboards": {
-        "test_board": {
-            "keys": {
-                "EXAMPLE_KEY": {"write": true}
-            }
-        }
-    }
+    "save_interval": 300
 }

@@ -1,0 +1,7 @@
+{
+    "test_board": {
+        "keys": {
+            "EXAMPLE_KEY": {"write": true}
+        }
+    }
+}
