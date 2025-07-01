@@ -1,6 +1,7 @@
 extern crate fs2;
 
-use crate::backend::{ActionType, AppState, Interaction, User};
+use crate::backend::{execute_action, ActionType, Interaction};
+use crate::app_state::AppState;
 use fs2::FileExt;
 use rocket::{
     State,
@@ -9,16 +10,16 @@ use rocket::{
     request::{FromRequest, Outcome, Request},
     tokio,
 };
-use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
     fs::OpenOptions,
-    io::{self, BufRead, Read, Write},
+    io::{self, BufRead, Write},
     sync::Arc,
 };
 
-mod backend;
-mod util;
+pub mod backend;
+pub mod util;
+pub mod app_state;
+pub mod board;
 
 #[macro_use]
 extern crate rocket;
@@ -30,7 +31,7 @@ pub enum RequestError {
 
 #[post("/update", format = "json", data = "<data>")]
 fn test(interaction: Interaction, data: String) -> Result<String, Status> {
-    interaction.state.actions[&ActionType::Update](interaction, data)
+    execute_action(ActionType::Update, interaction, data)
 }
 
 #[derive(Debug)]
@@ -65,7 +66,7 @@ impl<'r> FromRequest<'r> for Interaction<'r> {
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
     let executable_path = std::env::current_exe().unwrap();
-    let main_path = executable_path.parent().unwrap();
+    let main_path = executable_path.parent().unwrap().to_path_buf();
     let file: std::fs::File = OpenOptions::new()
         .read(true)
         .write(true)
@@ -99,7 +100,7 @@ async fn main() -> Result<(), rocket::Error> {
         .attach(AdHoc::on_liftoff("Save Loop", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {
-                    backend::save_loop(loop_arc).await;
+                    backend::save_loop(loop_arc, main_path.join("saves").to_path_buf()).await;
                 });
             })
         }))
