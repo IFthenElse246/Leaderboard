@@ -1,8 +1,9 @@
-use std::collections::{HashMap};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Seek, Write};
-use std::sync::{Mutex};
-use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::Mutex;
 
 use crate::backend::User;
 use crate::board::Board;
@@ -29,11 +30,15 @@ pub struct AppState {
     pub api_keys: Mutex<HashMap<String, User>>,
     pub port: usize,
     pub save_interval: u64,
-    pub boards_file: Mutex<File>
+    pub boards_file: Mutex<File>,
 }
 
 impl AppState {
-    pub fn new(mut file: &std::fs::File, mut boards_file: std::fs::File) -> Self {
+    pub fn new(
+        mut file: &std::fs::File,
+        mut boards_file: std::fs::File,
+        saves_path: &PathBuf,
+    ) -> Self {
         let content;
         let board_content;
 
@@ -67,7 +72,19 @@ impl AppState {
         let mut keys = HashMap::new();
 
         for (name, json_board) in board_json {
-            let board = Board::new();
+            let save_path = saves_path.join(format!("{name}.cbor"));
+            let board = match Board::from_file(&save_path) {
+                Ok(board) => board,
+                Err(err) => {
+                    panic!(
+                        "Failed to read save file ({}) for leaderboard {name}\n{err}",
+                        match save_path.to_str() {
+                            Some(path) => path.to_string(),
+                            None => format!("/saves/{name}.cbor"),
+                        }
+                    );
+                }
+            };
             boards.insert(name.clone(), board);
             for (key, user) in json_board.keys {
                 keys.insert(
@@ -85,7 +102,7 @@ impl AppState {
             api_keys: Mutex::new(keys),
             port: json.port,
             save_interval: json.save_interval,
-            boards_file: Mutex::new(boards_file)
+            boards_file: Mutex::new(boards_file),
         }
     }
 

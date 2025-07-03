@@ -1,8 +1,9 @@
 extern crate fs2;
 
-use crate::backend::{execute_action, ActionType, Interaction};
 use crate::app_state::AppState;
+use crate::backend::{ActionType, Interaction, execute_action};
 use fs2::FileExt;
+use rocket::tokio::fs;
 use rocket::{
     State,
     fairing::AdHoc,
@@ -10,16 +11,16 @@ use rocket::{
     request::{FromRequest, Outcome, Request},
     tokio,
 };
-use std::{
-    fs::OpenOptions,
-    io::{self, BufRead, Write},
-    sync::Arc,
-};
+use std::io::{Write, stdout};
+use std::{fs::OpenOptions, sync::Arc};
 
-pub mod backend;
-pub mod util;
 pub mod app_state;
+pub mod backend;
 pub mod board;
+mod cli;
+pub mod tree;
+pub mod tree_node;
+pub mod util;
 
 #[macro_use]
 extern crate rocket;
@@ -31,7 +32,7 @@ pub enum RequestError {
 
 #[post("/update", format = "json", data = "<data>")]
 fn test(interaction: Interaction, data: String) -> Result<String, Status> {
-    execute_action(ActionType::Update, interaction, data)
+    execute_action(ActionType::Update, &interaction, data)
 }
 
 #[derive(Debug)]
@@ -67,6 +68,9 @@ impl<'r> FromRequest<'r> for Interaction<'r> {
 async fn main() -> Result<(), rocket::Error> {
     let executable_path = std::env::current_exe().unwrap();
     let main_path = executable_path.parent().unwrap().to_path_buf();
+    let saves_path = main_path.join("saves").to_path_buf();
+    let cmd_saves_path = saves_path.clone();
+    let shutdown_saves_path = saves_path.clone();
     let file: std::fs::File = OpenOptions::new()
         .read(true)
         .write(true)
@@ -80,17 +84,25 @@ async fn main() -> Result<(), rocket::Error> {
         .open(main_path.join("boards.json"))
         .expect("Failed to open boards file.");
 
+    if !saves_path.exists() {
+        fs::create_dir(&saves_path)
+            .await
+            .expect("Could not create saves folder.");
+    }
+
     boards_file
         .try_lock_exclusive()
         .expect("Boards file in use by another program, could not lock.");
 
-    let state = AppState::new(&file, boards_file);
+    let state = AppState::new(&file, boards_file, &saves_path);
 
     drop(file);
 
     let port_arc = Arc::new(state);
     let state_arc = port_arc.clone();
     let loop_arc = port_arc.clone();
+    let cmd_arc = port_arc.clone();
+    let shutdown_arc = port_arc.clone();
     let port = port_arc.port;
 
     let r = rocket::build()
@@ -100,34 +112,14 @@ async fn main() -> Result<(), rocket::Error> {
         .attach(AdHoc::on_liftoff("Save Loop", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {
-                    backend::save_loop(loop_arc, main_path.join("saves").to_path_buf()).await;
+                    backend::save_loop(loop_arc, &saves_path).await;
                 });
             })
         }))
         .attach(AdHoc::on_liftoff("CLI", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {
-                    let mut stdin = io::stdin().lock();
-                    let stdout = io::stdout();
-                    let mut s = String::new();
-                    loop {
-                        let _ = write!(&mut stdout.lock(), "> ");
-                        stdout.lock().flush().unwrap();
-                        s = "".to_string();
-                        let res = stdin.read_line(&mut s);
-                        if res.is_err() {
-                            break;
-                        }
-
-                        let params: Vec<&str> = s.trim().split(" ").collect();
-
-                        if params.len() == 0 {
-                            continue;
-                        }
-
-                        let _ = writeln!(&mut stdout.lock(), "Cmd: {0}", params.get(0).unwrap());
-                        
-                    }
+                    cli::exec_cli(cmd_arc, cmd_saves_path);
                 });
             })
         }))
@@ -135,6 +127,9 @@ async fn main() -> Result<(), rocket::Error> {
         .await?;
 
     r.launch().await?;
+
+    let _ = writeln!(stdout().lock(), "Performing safe shutdown...");
+    backend::save(&shutdown_arc, &shutdown_saves_path);
 
     Ok(())
 }

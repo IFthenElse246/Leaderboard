@@ -1,0 +1,4 @@
+[default.shutdown]
+ctrlc = true
+grace = 1000
+mercy = 500

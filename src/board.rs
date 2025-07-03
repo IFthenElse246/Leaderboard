@@ -1,7 +1,10 @@
+use crate::tree::Entry;
 use indexset::BTreeSet;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap};
-use std::sync::{Arc};
+use std::collections::HashMap;
+use std::fs::File;
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn current_time() -> u128 {
@@ -11,12 +14,12 @@ fn current_time() -> u128 {
         .as_millis()
 }
 
-pub struct Board<T: PartialOrd = f64> {
+pub struct Board<T: PartialOrd + Serialize + for<'a> Deserialize<'a> = f64> {
     tree: BTreeSet<Arc<Entry<T>>>,
     map: HashMap<u64, Arc<Entry<T>>>,
 }
 
-impl<T: PartialOrd> Board<T> {
+impl<T: PartialOrd + Serialize + for<'a> Deserialize<'a>> Board<T> {
     pub fn get_entry(&self, id: u64) -> Option<&Arc<Entry<T>>> {
         return self.map.get(&id);
     }
@@ -50,6 +53,9 @@ impl<T: PartialOrd> Board<T> {
     }
 
     fn remove_entry_(&mut self, entry: Arc<Entry<T>>) -> bool {
+        if let None = self.map.remove(&entry.user_id) {
+            return false;
+        }
         return self.tree.remove(&entry);
     }
 
@@ -81,7 +87,7 @@ impl<T: PartialOrd> Board<T> {
 
     pub fn get_rank(&self, id: u64) -> Option<usize> {
         let entry = self.get_entry(id)?;
-        return Some(self.tree.rank(entry));
+        return Some(self.tree.len() - self.tree.rank(entry));
     }
 
     pub fn get_size(&self) -> usize {
@@ -124,11 +130,46 @@ impl<T: PartialOrd> Board<T> {
         return ret;
     }
 
+    pub fn clear(&mut self) {
+        self.tree.clear();
+        self.map.clear();
+    }
+
     pub fn new() -> Self {
         Self {
             tree: BTreeSet::new(),
             map: HashMap::new(),
         }
+    }
+
+    pub fn from_file(path: &PathBuf) -> Result<Self, ciborium::de::Error<std::io::Error>> {
+        if !path.exists() {
+            return Ok(Self::new());
+        }
+
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(err) => {
+                return Err(ciborium::de::Error::Io(err));
+            }
+        };
+        let tree: BTreeSet<Arc<Entry<T>>> = match ciborium::from_reader(file) {
+            Ok(tree) => tree,
+            Err(err) => {
+                return Err(err);
+            }
+        };
+
+        let mut map = HashMap::new();
+
+        for entry in tree.iter() {
+            map.insert(entry.user_id, entry.clone());
+        }
+
+        Ok(Self {
+            tree: tree,
+            map: map,
+        })
     }
 
     pub fn get_after(&self, id: u64, count: usize) -> Result<Vec<Arc<Entry<T>>>, String> {
@@ -155,39 +196,3 @@ impl<T: PartialOrd> Board<T> {
         Ok(ret)
     }
 }
-
-#[derive(PartialEq, Serialize, Deserialize)]
-pub struct Entry<T>
-where
-    T: PartialOrd + ?Sized,
-{
-    user_id: u64,
-    timestamp: u128,
-    points: T,
-}
-
-impl<T: PartialOrd> PartialOrd for Entry<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if self.points != other.points {
-            return self.points.partial_cmp(&other.points);
-        }
-        if other.timestamp != self.timestamp {
-            return other.timestamp.partial_cmp(&self.timestamp);
-        }
-        return other.user_id.partial_cmp(&self.user_id);
-    }
-}
-
-impl<T: PartialOrd> Ord for Entry<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.points.partial_cmp(&other.points) {
-            None | Some(std::cmp::Ordering::Equal) => match other.timestamp.cmp(&self.timestamp) {
-                std::cmp::Ordering::Equal => other.user_id.cmp(&self.user_id),
-                x => x,
-            },
-            Some(x) => x,
-        }
-    }
-}
-
-impl<T: PartialOrd> Eq for Entry<T> {}
