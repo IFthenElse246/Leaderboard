@@ -26,7 +26,7 @@ pub struct Config {
 }
 
 pub struct AppState {
-    pub boards: Mutex<HashMap<String, Board<f64>>>,
+    pub boards: Mutex<HashMap<String, Board<u64, f64>>>,
     pub api_keys: Mutex<HashMap<String, User>>,
     pub port: usize,
     pub save_interval: u64,
@@ -73,18 +73,19 @@ impl AppState {
 
         for (name, json_board) in board_json {
             let save_path = saves_path.join(format!("{name}.cbor"));
-            let board = match Board::from_file(&save_path) {
-                Ok(board) => board,
-                Err(err) => {
-                    panic!(
-                        "Failed to read save file ({}) for leaderboard {name}\n{err}",
-                        match save_path.to_str() {
-                            Some(path) => path.to_string(),
-                            None => format!("/saves/{name}.cbor"),
-                        }
-                    );
-                }
-            };
+            let board = Board::new();
+            // let board = match Board::from_file(&save_path) {
+            //     Ok(board) => board,
+            //     Err(err) => {
+            //         panic!(
+            //             "Failed to read save file ({}) for leaderboard {name}\n{err}",
+            //             match save_path.to_str() {
+            //                 Some(path) => path.to_string(),
+            //                 None => format!("/saves/{name}.cbor"),
+            //             }
+            //         );
+            //     }
+            // };
             boards.insert(name.clone(), board);
             for (key, user) in json_board.keys {
                 keys.insert(

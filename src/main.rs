@@ -18,8 +18,6 @@ pub mod app_state;
 pub mod backend;
 pub mod board;
 mod cli;
-pub mod tree;
-pub mod tree_node;
 pub mod util;
 
 #[macro_use]

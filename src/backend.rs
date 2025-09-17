@@ -22,66 +22,66 @@ pub struct Interaction<'r> {
 }
 
 pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
-    let stdout = io::stdout();
-    let _ = writeln!(&mut stdout.lock(), "Starting backup");
+    // let stdout = io::stdout();
+    // let _ = writeln!(&mut stdout.lock(), "Starting backup");
 
-    let temp_path = saves_path.join("temp");
+    // let temp_path = saves_path.join("temp");
 
-    let queue_lock = state_arc.boards.lock().unwrap();
+    // let queue_lock = state_arc.boards.lock().unwrap();
 
-    let mut queue = Vec::with_capacity(queue_lock.len());
-    for (name, _board) in queue_lock.iter() {
-        queue.push(name.clone());
-    }
-    drop(queue_lock);
+    // let mut queue = Vec::with_capacity(queue_lock.len());
+    // for (name, _board) in queue_lock.iter() {
+    //     queue.push(name.clone());
+    // }
+    // drop(queue_lock);
 
-    for name in queue.iter() {
-        let lock = state_arc.boards.lock().unwrap();
+    // for name in queue.iter() {
+    //     let lock = state_arc.boards.lock().unwrap();
 
-        if let Some(board) = lock.get(name) {
-            let _ = writeln!(&mut stdout.lock(), "Saving {name}...");
-            let new_tree = board.get_tree_copy();
+    //     if let Some(board) = lock.get(name) {
+    //         let _ = writeln!(&mut stdout.lock(), "Saving {name}...");
+    //         let new_tree = board.get_tree_copy();
 
-            drop(lock);
+    //         drop(lock);
 
-            let handle = match File::create(&temp_path) {
-                Ok(v) => v,
-                Err(err) => {
-                    let _ = writeln!(
-                        &mut io::stderr().lock(),
-                        "Failed to open temp file to save leaderboard backup.\n{}",
-                        err
-                    );
-                    break;
-                }
-            };
+    //         let handle = match File::create(&temp_path) {
+    //             Ok(v) => v,
+    //             Err(err) => {
+    //                 let _ = writeln!(
+    //                     &mut io::stderr().lock(),
+    //                     "Failed to open temp file to save leaderboard backup.\n{}",
+    //                     err
+    //                 );
+    //                 break;
+    //             }
+    //         };
 
-            match ciborium::into_writer(&new_tree, handle) {
-                Ok(_) => {
-                    if let Err(err) =
-                        std::fs::rename(&temp_path, saves_path.join(format!("{name}.cbor")))
-                    {
-                        let _ = writeln!(
-                            &mut io::stderr().lock(),
-                            "Failed to rename temp file into save.\n{}",
-                            err
-                        );
-                        break;
-                    }
-                }
-                Err(err) => {
-                    let _ = writeln!(
-                        &mut io::stderr().lock(),
-                        "Failed to write to temp file to save leaderboard backup.\n{}",
-                        err
-                    );
-                    break;
-                }
-            }
-        }
-    }
+    //         match ciborium::into_writer(&new_tree, handle) {
+    //             Ok(_) => {
+    //                 if let Err(err) =
+    //                     std::fs::rename(&temp_path, saves_path.join(format!("{name}.cbor")))
+    //                 {
+    //                     let _ = writeln!(
+    //                         &mut io::stderr().lock(),
+    //                         "Failed to rename temp file into save.\n{}",
+    //                         err
+    //                     );
+    //                     break;
+    //                 }
+    //             }
+    //             Err(err) => {
+    //                 let _ = writeln!(
+    //                     &mut io::stderr().lock(),
+    //                     "Failed to write to temp file to save leaderboard backup.\n{}",
+    //                     err
+    //                 );
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // }
 
-    let _ = writeln!(&mut stdout.lock(), "All boards saved.");
+    // let _ = writeln!(&mut stdout.lock(), "All boards saved.");
 }
 
 pub async fn save_loop(state_arc: Arc<AppState>, saves_path: &PathBuf) {
@@ -130,29 +130,33 @@ pub fn execute_update(interaction: &Interaction, dat: String) -> Result<String, 
 pub fn update_entry(interaction: &Interaction, id: u64, value: f64) -> bool {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.update_entry(id, value)
+    // board.update_entry(id, value)
+    false
 }
 
 pub fn get_points(interaction: &Interaction, id: u64) -> Option<f64> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    Some(board.get_entry(id)?.points)
+    // Some(board.get_entry(id)?.points)
+    None
 }
 
 pub fn get_size(interaction: &Interaction) -> usize {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.get_size()
+    //board.get_size()
+    0
 }
 
 pub fn get_rank(interaction: &Interaction, id: u64) -> Option<usize> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.get_rank(id)
+    //board.get_rank(id)
+    None
 }
 
 pub fn clear(interaction: &Interaction) {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.clear()
+    //board.clear()
 }

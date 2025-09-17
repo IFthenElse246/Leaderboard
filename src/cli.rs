@@ -244,55 +244,55 @@ pub fn execute_command(
                 let _ = writeln!(&mut stdout.lock(), "Cleared.");
             }
         }
-        "populate" => {
-            let usage_msg = "Usage: populate <count>";
+        // "populate" => {
+        //     let usage_msg = "Usage: populate <count>";
 
-            let count = match params.get(1) {
-                Some(b) => match b.parse::<u64>() {
-                    Ok(v) => v,
-                    Err(_) => {
-                        let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
-                        return;
-                    }
-                },
-                None => {
-                    let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
-                    return;
-                }
-            };
+        //     let count = match params.get(1) {
+        //         Some(b) => match b.parse::<u64>() {
+        //             Ok(v) => v,
+        //             Err(_) => {
+        //                 let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
+        //                 return;
+        //             }
+        //         },
+        //         None => {
+        //             let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
+        //             return;
+        //         }
+        //     };
 
-            if params.len() > 2 {
-                let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
-                return;
-            }
+        //     if params.len() > 2 {
+        //         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
+        //         return;
+        //     }
 
-            if let None = *current_user.lock().unwrap() {
-                let _ = writeln!(&mut stdout.lock(), "{SET_BOARD_PROMPT}");
-                return;
-            }
+        //     if let None = *current_user.lock().unwrap() {
+        //         let _ = writeln!(&mut stdout.lock(), "{SET_BOARD_PROMPT}");
+        //         return;
+        //     }
 
-            let interaction = create_interaction(current_user, cmd_arc);
-            let mut binding = interaction.state.boards.lock().unwrap();
-            let board = binding.get_mut(&interaction.user.board).unwrap();
-            let empty = board.get_size() == 0;
+        //     let interaction = create_interaction(current_user, cmd_arc);
+        //     let mut binding = interaction.state.boards.lock().unwrap();
+        //     let board = binding.get_mut(&interaction.user.board).unwrap();
+        //     let empty = board.get_size() == 0;
 
-            if !empty {
-                let _ = writeln!(
-                    &mut stdout.lock(),
-                    "Are you sure you want to populate this board with {count} dummy entries? This will clear all existing data on the current board."
-                );
-            }
+        //     if !empty {
+        //         let _ = writeln!(
+        //             &mut stdout.lock(),
+        //             "Are you sure you want to populate this board with {count} dummy entries? This will clear all existing data on the current board."
+        //         );
+        //     }
 
-            if empty || confirm_action() {
-                let _ = writeln!(&mut stdout.lock(), "Clearing data...");
+        //     if empty || confirm_action() {
+        //         let _ = writeln!(&mut stdout.lock(), "Clearing data...");
 
-                board.clear();
-                let _ = writeln!(&mut stdout.lock(), "Populating...");
-                for i in 0..count {
-                    board.update_entry(i + 1, i as f64);
-                }
-            }
-        }
+        //         board.clear();
+        //         let _ = writeln!(&mut stdout.lock(), "Populating...");
+        //         for i in 0..count {
+        //             board.update_entry(i + 1, i as f64);
+        //         }
+        //     }
+        // }
         "board" => {
             let usage_msg = "Usage: board <board_name>";
 
