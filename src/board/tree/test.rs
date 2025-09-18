@@ -35,9 +35,29 @@ fn test_100() {
 
     for i in 0..100 {
         // print!("{}: {}\n", i, tree.index_of(i).0)
-        assert!(tree.index_of(i).0 == (99 - i as usize));
+        assert!(tree.index_of(&i).0 == (99 - i as usize));
         assert!(tree.at_index((99 - i) as usize).is_some_and(|v| *v == i))
     };
+
+    let mut cursor = tree.cursor_mut();
+
+    for i in 0..100 {
+        cursor.move_next();
+        assert!(!cursor.is_at_end());
+        assert!(cursor.get_value().unwrap() == &i);
+        assert!(cursor.get_index().unwrap() == (99 - i as usize));
+    }
+    cursor.move_next();
+    assert!(cursor.is_at_end());
+
+    for i in 0..100 {
+        cursor.move_prev();
+        assert!(!cursor.is_at_end());
+        assert!(cursor.get_value().unwrap() == &(99 - i));
+        assert!(cursor.get_index().unwrap() == (i as usize));
+    }
+    cursor.move_prev();
+    assert!(cursor.is_at_end());
 
     for i in 0..50 {
         assert!(tree.remove(i));
@@ -50,4 +70,5 @@ fn test_100() {
     
     tree.clear();
     assert!(tree.is_empty());
+
 }

@@ -36,7 +36,7 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
         }
     }
 
-    pub fn index_of(&self, val: V) -> (usize, bool) {
+    pub fn index_of(&self, val: &V) -> (usize, bool) {
         let mut ind: usize = 0;
         unsafe {
             let mut parent = match (*self.sentinel.as_ptr()).right {
@@ -70,7 +70,7 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
         }
     }
 
-    pub fn at_index<'l>(&'l self, ind: usize) -> Option<&'l V> {
+    pub(super) fn node_at_index(&self, ind: usize) -> Option<*mut Node<V>> {
         let mut amount = ind;
         unsafe {
             let mut parent = (*self.sentinel.as_ptr()).right?.as_ptr();
@@ -79,7 +79,7 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                 let right = Node::get_right_count(parent);
                 match amount.cmp(&right) {
                     cmp::Ordering::Equal => {
-                        return Some(&(*parent).val);
+                        return Some(parent);
                     }
                     cmp::Ordering::Less => {
                         if (*parent).right.is_none() {
@@ -96,6 +96,12 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                     }
                 };
             }
+        }
+    }
+
+    pub fn at_index<'l>(&'l self, ind: usize) -> Option<&'l V> {
+        unsafe {
+            self.node_at_index(ind).map(|v| &(*v).val)
         }
     }
 

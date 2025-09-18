@@ -75,7 +75,7 @@ impl<V: Ord + ?Sized> Node<V> {
         }
     }
 
-    pub(super) unsafe fn is_sentinel(node: *mut Self) -> bool {
+    pub(super) fn is_sentinel(node: *mut Self) -> bool {
         unsafe {
             (*node).parent.is_none()
         }
@@ -176,6 +176,66 @@ impl<V: Ord + ?Sized> Node<V> {
             Self::rotate(rot_target);
             if zag {
                 Self::rotate(rot_target);
+            }
+        }
+    }
+
+    pub(super) unsafe fn next_node(node: *mut Self) -> *mut Self {
+        unsafe {
+            if let Some(right) =  (*node).right {
+                let mut next = right.as_ptr();
+                while let Some(left) = (*next).left {
+                    next = left.as_ptr();
+                }
+                return next;
+            } else {
+                let mut next = match (*node).parent {
+                    Some(v) => v.as_ptr(),
+                    None => {return node;}
+                };
+                let mut is_left = (*node).is_left_child;
+                while !is_left {
+                    is_left = (*next).is_left_child;
+                    next = match (*next).parent {
+                        None => {return next;},
+                        Some(v) => v.as_ptr()
+                    };
+                };
+                return next;
+            }
+        }
+    }
+
+    pub(super) unsafe fn prev_node(node: *mut Self) -> *mut Self {
+        unsafe {
+            if (*node).parent.is_none() {
+                let mut prev = match (*node).right {
+                    None => {return node;},
+                    Some(v) => v.as_ptr()
+                };
+                while let Some(right) = (*prev).right {
+                    prev = right.as_ptr();
+                }
+                return prev;
+            }
+
+            if let Some(left) =  (*node).left {
+                let mut prev: *mut Node<V> = left.as_ptr();
+                while let Some(right) = (*prev).right {
+                    prev = right.as_ptr();
+                }
+                return prev;
+            } else {
+                let mut prev = (*node).parent.unwrap().as_ptr();
+                let mut is_left = (*node).is_left_child;
+                while is_left {
+                    is_left = (*prev).is_left_child;
+                    prev = match (*prev).parent {
+                        None => {return prev;},
+                        Some(v) => v.as_ptr()
+                    };
+                };
+                return prev;
             }
         }
     }
