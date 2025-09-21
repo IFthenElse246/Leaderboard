@@ -78,7 +78,7 @@ impl<V: Ord + Sized + Default + Clone + Encode> Encode for Tree<V> {
     }
 }
 
-impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context: bincode::de::Decoder> Decode<Context> for Tree<V> {
+impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context> Decode<Context> for Tree<V> {
     fn decode<D: bincode::de::Decoder>(decoder: &mut D) -> Result<Self, bincode::error::DecodeError>  where V: Decode<<D as Decoder>::Context> {
         unsafe {
             let mut stack: Vec<StackEntry<V>> = Vec::new();
@@ -97,11 +97,11 @@ impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context: bincode::de::D
                 match last.state {
                     StackState::Left => {
                         decoder.reader().read(&mut existence)?;
-                        val = bincode::Decode::decode(decoder)?;
 
                         last.state = StackState::Right;
 
                         if existence[0] == 1 {
+                            val = bincode::Decode::decode(decoder)?;
                             let node = Node {
                                 count: 0,
                                 height: 0,
@@ -126,11 +126,11 @@ impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context: bincode::de::D
                     }
                     StackState::Right => {
                         decoder.reader().read(&mut existence)?;
-                        val = bincode::Decode::decode(decoder)?;
 
                         last.state = StackState::Handle;
 
                         if existence[0] == 1 {
+                            val = bincode::Decode::decode(decoder)?;
                             let node = Node {
                                 count: 0,
                                 height: 0,

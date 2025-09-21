@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs::File, io::BufWriter};
 
 use super::*;
 
@@ -92,4 +92,65 @@ fn test_100() {
     tree.clear();
     assert!(tree.is_empty());
 
+}
+
+#[test]
+pub fn test_io() {
+    unsafe {
+        env::set_var("RUST_BACKTRACE", "1");
+        env::set_var("MIRIFLAGS", "-Zmiri-disable-isolation");
+    }
+
+    let mut tree: Tree<u32> = Tree::new();
+
+    for i in 1..100000 {
+        tree.insert(i);
+    }
+
+    for i in 1..100000 {
+        if i % 3 == 0 {
+            tree.remove(&i);
+        }
+    }
+
+    let mut file = File::create("test.tree").expect("Failed to create file");
+
+    if let Err(v) = bincode::encode_into_std_write(&tree, &mut file, bincode::config::standard()) {
+        panic!("Write Error: {:?}", v);
+    }
+
+    drop(file);
+
+    file = File::open("test.tree").expect("Failed to open file");
+
+    let tree2: Tree<u32> = match bincode::decode_from_std_read(&mut file, bincode::config::standard()) {
+        Err(v) => {
+            panic!("Read Error: {:?}", v);
+        },
+        Ok(tree) => tree
+    };
+
+    tree2.validate();
+
+    // tree.print_pretty();
+    // tree2.print_pretty();
+
+    let mut cursor1 = tree.cursor();
+    let mut cursor2 = tree2.cursor();
+
+    cursor1.move_next();
+    cursor2.move_next();
+
+    while !cursor1.is_at_end() {
+        assert_eq!(cursor1.get_value(), cursor2.get_value(), "Values not equal, {:?} and {:?}", cursor1.get_value(), cursor2.get_value());
+        assert_eq!(cursor1.get_index(), cursor2.get_index(), "Indicies not equal, {:?} and {:?}", cursor1.get_index(), cursor2.get_index());
+        assert_eq!(cursor1.get_height(), cursor2.get_height(), "Heights not equal, {:?} and {:?}", cursor1.get_height(), cursor2.get_height());
+
+        cursor1.move_next();
+        cursor2.move_next();
+    }
+
+    if !cursor2.is_at_end() {
+        panic!("Tree2 was longer than Tree1!");
+    }
 }
