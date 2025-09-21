@@ -11,12 +11,12 @@ fn current_time() -> u128 {
         .as_millis()
 }
 
-pub struct Board<K: Ord + Sized + Default + Clone = u64, V: PartialOrd + ?Sized + Clone = f64> {
+pub struct Board<K: Ord + Sized + Default = u64, V: PartialOrd + ?Sized = f64> {
     tree: Tree<EntryRef<K, V>>,
     map: HashMap<K, NonNull<EntryRef<K, V>>>,
 }
 
-impl<K: Ord + Sized + Default + Clone, V: PartialOrd + ?Sized + Clone> Board<K, V> {
+impl<K: Ord + Sized + Default, V: PartialOrd + ?Sized> Board<K, V> {
     pub fn new() -> Self {
         Board {
             tree: Tree::new(),
@@ -25,5 +25,5 @@ impl<K: Ord + Sized + Default + Clone, V: PartialOrd + ?Sized + Clone> Board<K, 
     }
 }
 
-unsafe impl<K: Ord + Sized + Default + Clone + Send, V: PartialOrd + ?Sized + Clone + Send> Send for Board<K, V> {}
-unsafe impl<K: Ord + Sized + Default + Clone + Sync, V: PartialOrd + ?Sized + Clone + Sync> Sync for Board<K, V> {}
+unsafe impl<K: Ord + Sized + Default + Send, V: PartialOrd + ?Sized + Send> Send for Board<K, V> {}
+unsafe impl<K: Ord + Sized + Default + Sync, V: PartialOrd + ?Sized + Sync> Sync for Board<K, V> {}

@@ -1,10 +1,12 @@
 use std::ptr::NonNull;
 
+use bincode::Decode;
+
 use super::Node;
 use super::Tree;
 use super::stacks::*;
 
-impl<V: Ord + Sized + Default + Clone> Tree<V> {
+impl<V: Ord + Sized + Default> Tree<V> {
     pub fn new() -> Self {
         unsafe {
             Self {
@@ -20,7 +22,9 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
             }
         }
     }
+}
 
+impl<V: Ord + Sized + Default + Clone> Tree<V> {
     pub fn from_tree(other: &Self) -> Self {
         let tree = Self::new();
 
@@ -108,5 +112,11 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
         };
 
         tree
+    }
+}
+
+impl<V: Ord + Sized + Default + Clone> Clone for Tree<V> {
+    fn clone(&self) -> Self {
+        Self::from_tree(self)
     }
 }

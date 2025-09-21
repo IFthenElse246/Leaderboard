@@ -110,6 +110,15 @@ impl<V: Ord + ?Sized> Node<V> {
         }
     }
 
+    pub(super) unsafe fn get_left_count(node: *mut Self) -> usize {
+        unsafe {
+            match (*node).left {
+                None => 0,
+                Some(ptr) => (*ptr.as_ptr()).count,
+            }
+        }
+    }
+
     pub(super) unsafe fn get_right_count(node: *mut Self) -> usize {
         unsafe {
             match (*node).right {
@@ -121,14 +130,7 @@ impl<V: Ord + ?Sized> Node<V> {
 
     pub(super) unsafe fn fix_count(node: *mut Self) {
         unsafe {
-            (*node).count =
-                1 + match (*node).left {
-                    None => 0,
-                    Some(ptr) => (*ptr.as_ptr()).count,
-                } + match (*node).right {
-                    None => 0,
-                    Some(ptr) => (*ptr.as_ptr()).count,
-                }
+            (*node).count = 1 + Self::get_left_count(node) + Self::get_right_count(node);
         }
     }
 
@@ -142,12 +144,11 @@ impl<V: Ord + ?Sized> Node<V> {
             let zag: bool;
 
             match Self::get_left_height(node).cmp(&Self::get_right_height(node)) {
-                cmp::Ordering::Equal => return,
+                cmp::Ordering::Equal => panic!("Heights are equal for imbalance"),
                 cmp::Ordering::Greater => {
                     let left = (*node).left.unwrap().as_ptr();
                     match Self::get_left_height(left).cmp(&Self::get_right_height(left)) {
-                        cmp::Ordering::Equal => return,
-                        cmp::Ordering::Greater => {
+                        cmp::Ordering::Equal | cmp::Ordering::Greater => {
                             zag = false;
                             rot_target = left;
                         }
@@ -160,8 +161,7 @@ impl<V: Ord + ?Sized> Node<V> {
                 cmp::Ordering::Less => {
                     let right = (*node).right.unwrap().as_ptr();
                     match Self::get_right_height(right).cmp(&Self::get_left_height(right)) {
-                        cmp::Ordering::Equal => return,
-                        cmp::Ordering::Greater => {
+                        cmp::Ordering::Equal | cmp::Ordering::Greater => {
                             zag = false;
                             rot_target = right;
                         }

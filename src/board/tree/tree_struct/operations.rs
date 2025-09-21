@@ -4,7 +4,7 @@ use super::Node;
 use super::Tree;
 use super::stacks::*;
 
-impl<V: Ord + Sized + Default + Clone> Tree<V> {
+impl<V: Ord + Sized + Default> Tree<V> {
     pub fn insert(&mut self, val: V) -> bool {
         unsafe {
             if (*self.sentinel.as_ptr()).right.is_none() {
@@ -69,11 +69,9 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
         }
     }
 
-    pub fn remove(&mut self, val: V) -> bool {
+    pub fn remove(&mut self, val: &V) -> Option<V> {
         unsafe {
-            if (*self.sentinel.as_ptr()).right.is_none() {
-                return false;
-            }
+            (*self.sentinel.as_ptr()).right?;
             let mut node = (*self.sentinel.as_ptr()).right.unwrap().as_ptr();
 
             loop {
@@ -82,29 +80,22 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                         break;
                     }
                     cmp::Ordering::Greater => {
-                        if (*node).right.is_none() {
-                            return false;
-                        }
-                        node = (*node).right.unwrap().as_ptr();
+                        node = (*node).right?.as_ptr();
                     }
                     cmp::Ordering::Less => {
-                        if (*node).left.is_none() {
-                            return false;
-                        }
-                        node = (*node).left.unwrap().as_ptr();
+                        node = (*node).left?.as_ptr();
                     }
                 };
             }
 
             self.remove_node(node);
-
-            return true;
+            return Some((*Box::from_raw(node)).val);
         }
     }
 
-    unsafe fn remove_node(&mut self, node: *mut Node<V>) -> Box<Node<V>> {
+    pub(super) unsafe fn remove_node(&mut self, node: *mut Node<V>) {
         unsafe {
-            let parent = match (*node).parent {
+            let parent: *mut Node<V> = match (*node).parent {
                 Some(v) => v.as_ptr(),
                 None => panic!("Cannot remove sentinel node!"),
             };
@@ -123,7 +114,6 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                 }
 
                 self.recursive_fix_up(parent);
-                return Box::from_raw(node);
             } else if (*node).right.is_none() {
                 // if theres a left child and no right child, replace me with my left child
                 if (*node).is_left_child {
@@ -137,39 +127,42 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                 (*child).is_left_child = (*node).is_left_child;
 
                 self.recursive_fix_up(parent);
-                return Box::from_raw(node);
-            }
-
-            /* If I have two children, then find the node "before" me in the tree.
-            That node will have no right child, so I can recursively delete it.
-            When I'm done, I'll swap out this node with that one. */
-            let mut replace_ptr = (*node).left.unwrap().as_ptr();
-            while (*replace_ptr).right.is_some() {
-                replace_ptr = (*replace_ptr).right.unwrap().as_ptr();
-            }
-
-            let replace_node = Box::into_raw(self.remove_node(replace_ptr));
-
-            if (*node).is_left_child {
-                (*parent).left = Some(NonNull::new_unchecked(replace_node));
             } else {
-                (*parent).right = Some(NonNull::new_unchecked(replace_node));
+                /* If I have two children, then find the node "before" me in the tree.
+                That node will have no right child, so I can recursively delete it.
+                When I'm done, I'll swap out this node with that one. */
+                let mut replace_node = (*node).left.unwrap().as_ptr();
+                while (*replace_node).right.is_some() {
+                    replace_node = (*replace_node).right.unwrap().as_ptr();
+                }
+                self.remove_node(replace_node);
+
+                let parent: *mut Node<V> = (*node).parent.unwrap().as_ptr();
+
+                if (*node).is_left_child {
+                    (*parent).left = Some(NonNull::new_unchecked(replace_node));
+                } else {
+                    (*parent).right = Some(NonNull::new_unchecked(replace_node));
+                }
+
+                (*replace_node).parent = (*node).parent;
+                (*replace_node).is_left_child = (*node).is_left_child;
+
+                (*replace_node).left = (*node).left;
+                if let Some(child) = (*replace_node).left {
+                    (*child.as_ptr()).parent = Some(NonNull::new_unchecked(replace_node));
+                }
+
+                (*replace_node).right = (*node).right;
+                if let Some(child) = (*replace_node).right {
+                    (*child.as_ptr()).parent = Some(NonNull::new_unchecked(replace_node));
+                }
+
+                (*replace_node).count = (*node).count;
+                (*replace_node).height = (*node).height
+
+                //self.recursive_fix_up(replace_node);
             }
-
-            (*replace_node).parent = (*node).parent;
-
-            (*replace_node).left = (*node).left;
-            if let Some(child) = (*replace_node).left.map(|ptr| ptr.as_ptr()) {
-                (*child).parent = Some(NonNull::new_unchecked(replace_node));
-            }
-
-            (*replace_node).right = (*node).right;
-            if let Some(child) = (*replace_node).right.map(|ptr| ptr.as_ptr()) {
-                (*child).parent = Some(NonNull::new_unchecked(replace_node));
-            }
-
-            self.recursive_fix_up(replace_node);
-            return Box::from_raw(node);
         }
     }
 

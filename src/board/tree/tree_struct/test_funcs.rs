@@ -1,4 +1,5 @@
 use std::cmp;
+use std::fmt::Display;
 
 use super::Node;
 use super::Tree;
@@ -24,11 +25,21 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                 match last.state {
                     StackState::Left => {
                         if dir != (*last.ptr).is_left_child {
-                            panic!("Is left child does not match if it is a left child!")
+                            panic!("Is left child does not match if it is a left child!");
                         }
-                        if Node::is_imbalanced(last.ptr) {
-                            panic!("Tree is imbalanced!")
+                        if let Some(left) = (*last.ptr).left {
+                            if (*left.as_ptr()).parent.unwrap().as_ptr() != last.ptr {
+                                panic!("Parent does not agree with left!");
+                            }
                         }
+                        if let Some(right) = (*last.ptr).right {
+                            if (*right.as_ptr()).parent.unwrap().as_ptr() != last.ptr {
+                                panic!("Parent does not agree with right!");
+                            }
+                        }
+                        // if Node::is_imbalanced(last.ptr) {
+                        //     panic!("Tree is imbalanced!");
+                        // }
 
                         last.state = StackState::Right;
                         if let Some(child) = (*last.ptr).left {
@@ -78,6 +89,23 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                     }
                 };
             }
+        }
+    }
+}
+
+impl<V: Ord + Sized + Default + Clone + Display> Tree<V> {
+    pub fn print_pretty(&self) {
+        println!("Height: {}, Size: {}", self.height(), self.len());
+        let full_height = self.height();
+        let mut cursor = self.cursor();
+        cursor.move_prev();
+        while !cursor.is_at_end() {
+            print!("{}:\t", cursor.get_height().unwrap());
+            for i in 0..(full_height-cursor.get_height().unwrap()) {
+                print!("\t");
+            }
+            print!("{}\n", *cursor.get_value().unwrap());
+            cursor.move_prev();
         }
     }
 }

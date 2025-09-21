@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use std::{fmt::Display, ptr::NonNull};
 
 mod constructors;
 mod read;
@@ -6,14 +6,15 @@ mod operations;
 mod stacks;
 mod test_funcs;
 mod iteration;
+mod io;
 
 use super::Node;
 
-pub struct Tree<V: Ord + Sized + Default + Clone> {
+pub struct Tree<V: Ord + Sized + Default> {
     sentinel: NonNull<Node<V>>,
 }
 
-impl<V: Ord + Sized + Default + Clone> Drop for Tree<V> {
+impl<V: Ord + Sized + Default> Drop for Tree<V> {
     fn drop(&mut self) {
         self.clear();
         unsafe {
@@ -22,11 +23,5 @@ impl<V: Ord + Sized + Default + Clone> Drop for Tree<V> {
     }
 }
 
-impl<V: Ord + Sized + Default + Clone> Clone for Tree<V> {
-    fn clone(&self) -> Self {
-        Self::from_tree(self)
-    }
-}
-
-unsafe impl<V: Send + Ord + ?Sized + Default + Clone> Send for Tree<V> {}
-unsafe impl<V: Sync + Ord + ?Sized + Default + Clone> Sync for Tree<V> {}
+unsafe impl<V: Send + Ord + ?Sized + Default> Send for Tree<V> {}
+unsafe impl<V: Sync + Ord + ?Sized + Default> Sync for Tree<V> {}

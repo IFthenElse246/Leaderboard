@@ -4,8 +4,8 @@ use crate::board::tree::{node::Node, tree_struct::stacks::StackEntry};
 
 use super::Tree;
 
-impl<V: Ord + Sized + Default + Clone> Tree<V> {
-    pub fn contains(&self, val: V) -> bool {
+impl<V: Ord + Sized + Default> Tree<V> {
+    pub fn contains(&self, val: &V) -> bool {
         unsafe {
             let mut parent = match (*self.sentinel.as_ptr()).right {
                 None => {

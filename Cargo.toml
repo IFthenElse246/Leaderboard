@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bincode = "2.0.1"
 ciborium = "0.2.2"
 fs2 = "0.4.3"
 indexset = { version = "0.12.2", features = ["serde"] }
