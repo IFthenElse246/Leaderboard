@@ -1,17 +1,27 @@
 use std::ptr::NonNull;
 
-use bincode::{de::{read::Reader, Decoder}, enc::write::Writer, Decode, Encode};
+use bincode::{
+    Decode, Encode,
+    de::{Decoder, read::Reader},
+    enc::write::Writer,
+};
 
-use crate::board::tree::{node::Node, tree_struct::stacks::{StackEntry, StackState}};
+use crate::board::tree::{
+    node::Node,
+    tree_struct::stacks::{StackEntry, StackState},
+};
 
 use super::Tree;
 
 impl<V: Ord + Sized + Default + Clone + Encode> Encode for Tree<V> {
-    fn encode<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
         unsafe {
             if (*self.sentinel.as_ptr()).right.is_none() {
                 encoder.writer().write(&[0])?;
-                return  Ok(());
+                return Ok(());
             } else {
                 encoder.writer().write(&[1])?;
             }
@@ -72,14 +82,17 @@ impl<V: Ord + Sized + Default + Clone + Encode> Encode for Tree<V> {
                         };
                     }
                 };
-            };
+            }
             Ok(())
         }
     }
 }
 
 impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context> Decode<Context> for Tree<V> {
-    fn decode<D: bincode::de::Decoder>(decoder: &mut D) -> Result<Self, bincode::error::DecodeError>  where V: Decode<<D as Decoder>::Context> {
+    fn decode<D: bincode::de::Decoder>(decoder: &mut D) -> Result<Self, bincode::error::DecodeError>
+    where
+        V: Decode<<D as Decoder>::Context>,
+    {
         unsafe {
             let mut stack: Vec<StackEntry<V>> = Vec::new();
 
@@ -109,7 +122,7 @@ impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context> Decode<Context
                                 right: None,
                                 parent: Some(NonNull::new_unchecked(last.ptr)),
                                 is_left_child: true,
-                                val: val
+                                val: val,
                             };
                             let node_ptr = Box::into_raw(Box::new(node));
 
@@ -138,7 +151,7 @@ impl<V: Ord + Sized + Default + Clone + Decode<Context>, Context> Decode<Context
                                 right: None,
                                 parent: Some(NonNull::new_unchecked(last.ptr)),
                                 is_left_child: false,
-                                val: val
+                                val: val,
                             };
                             let node_ptr = Box::into_raw(Box::new(node));
 

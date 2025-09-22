@@ -1,5 +1,7 @@
 use std::cmp;
 
+use bincode::{Decode, Encode, de::Decoder};
+
 #[derive(PartialEq)]
 pub struct Entry<K, V>
 where
@@ -8,7 +10,7 @@ where
 {
     pub timestamp: u128,
     pub points: V,
-    pub key: K
+    pub key: K,
 }
 
 impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> PartialOrd for Entry<K, V> {
@@ -16,9 +18,9 @@ impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> PartialOrd for En
         match self.points.partial_cmp(&other.points) {
             Some(cmp::Ordering::Equal) => match other.timestamp.partial_cmp(&self.timestamp) {
                 Some(cmp::Ordering::Equal) => other.key.partial_cmp(&self.key),
-                v => v
+                v => v,
             },
-            v => v
+            v => v,
         }
     }
 }
@@ -29,11 +31,11 @@ impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> Ord for Entry<K, 
             Some(cmp::Ordering::Equal) | None => match other.timestamp.cmp(&self.timestamp) {
                 cmp::Ordering::Equal => match other.key.partial_cmp(&self.key) {
                     None => cmp::Ordering::Equal,
-                    Some(v) => v
+                    Some(v) => v,
                 },
-                v => v
+                v => v,
             },
-            Some(v) => v
+            Some(v) => v,
         }
     }
 }
@@ -43,18 +45,55 @@ impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> Default for Entry
         Self {
             timestamp: 0,
             points: V::default(),
-            key: K::default()
+            key: K::default(),
         }
     }
 }
 
 impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> Eq for Entry<K, V> {}
-impl<K: PartialOrd + Default + Clone, V: PartialOrd + Sized + Default + Clone> Clone for Entry<K, V> {
+impl<K: PartialOrd + Default + Clone, V: PartialOrd + Sized + Default + Clone> Clone
+    for Entry<K, V>
+{
     fn clone(&self) -> Self {
         Self {
             timestamp: self.timestamp.clone(),
             points: self.points.clone(),
-            key: self.key.clone()
+            key: self.key.clone(),
         }
+    }
+}
+
+impl<
+    K: PartialOrd + Default + Decode<Context>,
+    V: PartialOrd + Sized + Default + Decode<Context>,
+    Context,
+> Decode<Context> for Entry<K, V>
+{
+    fn decode<D: bincode::de::Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError>
+    where
+        K: Decode<<D as Decoder>::Context>,
+        V: Decode<<D as Decoder>::Context>,
+    {
+        Ok(Self {
+            key: bincode::Decode::decode(decoder)?,
+            timestamp: bincode::Decode::decode(decoder)?,
+            points: bincode::Decode::decode(decoder)?,
+        })
+    }
+}
+
+impl<K: PartialOrd + Default + Encode, V: PartialOrd + Sized + Default + Encode> Encode
+    for Entry<K, V>
+{
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        bincode::Encode::encode(&self.key, encoder)?;
+        bincode::Encode::encode(&self.timestamp, encoder)?;
+        bincode::Encode::encode(&self.points, encoder)?;
+        Ok(())
     }
 }

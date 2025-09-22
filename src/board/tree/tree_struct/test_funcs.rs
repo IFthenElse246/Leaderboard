@@ -100,7 +100,7 @@ impl<V: Ord + Sized + Default + Clone + Display> Tree<V> {
         cursor.move_prev();
         while !cursor.is_at_end() {
             print!("{}:\t", cursor.get_height().unwrap());
-            for i in 0..(full_height-cursor.get_height().unwrap()) {
+            for _i in 0..(full_height - cursor.get_height().unwrap()) {
                 print!("\t");
             }
             print!("{}\n", *cursor.get_value().unwrap());

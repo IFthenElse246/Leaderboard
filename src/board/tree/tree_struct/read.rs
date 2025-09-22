@@ -100,21 +100,15 @@ impl<V: Ord + Sized + Default> Tree<V> {
     }
 
     pub fn at_index<'l>(&'l self, ind: usize) -> Option<&'l V> {
-        unsafe {
-            self.node_at_index(ind).map(|v| &(*v).val)
-        }
+        unsafe { self.node_at_index(ind).map(|v| &(*v).val) }
     }
 
     pub fn is_empty(&self) -> bool {
-        unsafe {
-            (*self.sentinel.as_ptr()).right.is_none()
-        }
+        unsafe { (*self.sentinel.as_ptr()).right.is_none() }
     }
 
     pub fn len(&self) -> usize {
-        unsafe {
-            Node::get_right_count(self.sentinel.as_ptr())
-        }
+        unsafe { Node::get_right_count(self.sentinel.as_ptr()) }
     }
 
     pub fn height(&self) -> usize {
@@ -130,10 +124,10 @@ impl<V: Ord + Sized + Default> Tree<V> {
     //     if self.is_empty() {
     //         return Vec::new();
     //     }
-        
+
     //     let mut stack: Vec<StackEntry<V>> = Vec::with_capacity(self.height());
     //     let mut ret: Vec<&'a V> = Vec::with_capacity(count);
-        
+
     //     loop {
 
     //     }

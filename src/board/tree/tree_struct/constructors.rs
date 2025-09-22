@@ -29,7 +29,7 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
         if other.is_empty() {
             return tree;
         }
-        
+
         unsafe {
             let mut stack: Vec<CloneStackEntry<V>> = Vec::with_capacity(other.height());
 
@@ -52,7 +52,7 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
                             right: None,
                             parent: Some(NonNull::new_unchecked(parent)),
                             is_left_child: dir,
-                            val: (*last.ptr).val.clone()
+                            val: (*last.ptr).val.clone(),
                         }));
 
                         if dir {
@@ -76,7 +76,6 @@ impl<V: Ord + Sized + Default + Clone> Tree<V> {
 
                             stack.push(entry);
                             last = stack.last_mut().unwrap();
-                            
                         }
                     }
                     StackState::Right => {

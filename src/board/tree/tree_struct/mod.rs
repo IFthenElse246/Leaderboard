@@ -1,12 +1,12 @@
 use std::ptr::NonNull;
 
 mod constructors;
-mod read;
+mod io;
+mod iteration;
 mod operations;
+mod read;
 mod stacks;
 mod test_funcs;
-mod iteration;
-mod io;
 
 use super::Node;
 

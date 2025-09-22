@@ -1,20 +1,20 @@
 use std::cmp;
 
-use crate::board::tree::{node::Node};
+use crate::board::tree::node::Node;
 
 use super::Tree;
 
 #[derive(Clone)]
-pub struct Cursor<'a, V: Ord + Sized + Default + Clone > {
+pub struct Cursor<'a, V: Ord + Sized + Default + Clone> {
     tree: &'a Tree<V>,
     node: *mut Node<V>,
     index: Option<usize>,
-    val: Option<&'a V>
+    val: Option<&'a V>,
 }
 
 macro_rules! cursor_impl {
     ($cursor:ident) => {
-        impl<'a, V: Ord + Sized + Default + Clone > $cursor<'a, V> {
+        impl<'a, V: Ord + Sized + Default + Clone> $cursor<'a, V> {
             // advance to the next highest person on the leaderboard. If pointing at sentinel, will point to lowest person in the leaderboard. Decreases index/rank.
             pub fn move_next<'b>(&'b mut self) -> Option<&'b V> {
                 unsafe {
@@ -28,8 +28,8 @@ macro_rules! cursor_impl {
                             Some(v) => Some(v - 1),
                             None => match self.val {
                                 Some(_v) => None,
-                                None => Some(self.tree.len()-1)
-                            }
+                                None => Some(self.tree.len() - 1),
+                            },
                         };
                         self.val = Some(&(*self.node).val);
                         return self.val;
@@ -50,8 +50,8 @@ macro_rules! cursor_impl {
                             Some(v) => Some(v + 1),
                             None => match self.val {
                                 Some(_v) => None,
-                                None => Some(0)
-                            }
+                                None => Some(0),
+                            },
                         };
                         self.val = Some(&(*self.node).val);
                         return self.val;
@@ -63,7 +63,7 @@ macro_rules! cursor_impl {
                 unsafe {
                     self.node = match (*self.node).right {
                         None => self.tree.sentinel.as_ptr(),
-                        Some(v) => v.as_ptr()
+                        Some(v) => v.as_ptr(),
                     };
                     if (*self.node).parent.is_none() {
                         self.val = None;
@@ -74,8 +74,8 @@ macro_rules! cursor_impl {
                             Some(v) => Some(v - 1 - Node::get_left_count(self.node)),
                             None => match self.val {
                                 Some(_v) => None,
-                                None => Some(Node::get_right_count(self.node))
-                            }
+                                None => Some(Node::get_right_count(self.node)),
+                            },
                         };
                         self.val = Some(&(*self.node).val);
                         return self.val;
@@ -87,7 +87,7 @@ macro_rules! cursor_impl {
                 unsafe {
                     self.node = match (*self.node).left {
                         None => self.tree.sentinel.as_ptr(),
-                        Some(v) => v.as_ptr()
+                        Some(v) => v.as_ptr(),
                     };
                     if (*self.node).parent.is_none() {
                         self.val = None;
@@ -106,7 +106,7 @@ macro_rules! cursor_impl {
                     let prev_node = self.node;
                     self.node = match (*self.node).parent {
                         None => self.node,
-                        Some(v) => v.as_ptr()
+                        Some(v) => v.as_ptr(),
                     };
                     if (*self.node).parent.is_none() {
                         self.val = None;
@@ -133,7 +133,7 @@ macro_rules! cursor_impl {
                             self.index = Some(self.tree.index_of(v).0);
                             self.index
                         }
-                    }
+                    },
                 }
             }
 
@@ -146,11 +146,11 @@ macro_rules! cursor_impl {
             }
 
             pub fn has_left(&self) -> bool {
-                unsafe {(*self.node).left.is_some()}
+                unsafe { (*self.node).left.is_some() }
             }
 
             pub fn has_right(&self) -> bool {
-                unsafe {(*self.node).right.is_some()}
+                unsafe { (*self.node).right.is_some() }
             }
 
             pub fn is_root(&self) -> bool {
@@ -171,22 +171,22 @@ macro_rules! cursor_impl {
 
             pub fn get_tree<'b>(&'b self) -> &'b Tree<V> {
                 return self.tree;
-            } 
+            }
         }
     };
 }
 
-pub struct CursorMut<'a, V: Ord + Sized + Default + Clone > {
+pub struct CursorMut<'a, V: Ord + Sized + Default + Clone> {
     tree: &'a mut Tree<V>,
     node: *mut Node<V>,
     index: Option<usize>,
-    val: Option<&'a V>
+    val: Option<&'a V>,
 }
 
-cursor_impl!{Cursor}
-cursor_impl!{CursorMut}
+cursor_impl! {Cursor}
+cursor_impl! {CursorMut}
 
-impl<'a, V: Ord + Sized + Default + Clone > CursorMut<'a, V> {
+impl<'a, V: Ord + Sized + Default + Clone> CursorMut<'a, V> {
     pub fn delete_next(&mut self) -> Option<V> {
         unsafe {
             let target = Node::next_node(self.node);
@@ -214,14 +214,14 @@ impl<'a, V: Ord + Sized + Default + Clone > CursorMut<'a, V> {
     }
 }
 
-impl<V: Ord + Sized + Default + Clone > Tree<V> {
+impl<V: Ord + Sized + Default + Clone> Tree<V> {
     pub fn cursor<'a>(&'a self) -> Cursor<'a, V> {
         let sentinel = self.sentinel.as_ptr();
         Cursor {
             tree: self,
             node: sentinel,
             index: None,
-            val: None
+            val: None,
         }
     }
 
@@ -232,7 +232,7 @@ impl<V: Ord + Sized + Default + Clone > Tree<V> {
                 tree: self,
                 node: node,
                 index: Some(index),
-                val: Some(&(*node).val)
+                val: Some(&(*node).val),
             })
         }
     }
@@ -245,22 +245,22 @@ impl<V: Ord + Sized + Default + Clone > Tree<V> {
                 match (*node).val.cmp(val) {
                     cmp::Ordering::Less => {
                         node = (*node).right?.as_ptr();
-                    },
+                    }
                     cmp::Ordering::Equal => {
                         index += Node::get_right_count(node);
                         break;
-                    },
+                    }
                     cmp::Ordering::Greater => {
                         index += 1 + Node::get_right_count(node);
                         node = (*node).left?.as_ptr();
                     }
                 };
-            };
+            }
             Some(Cursor {
                 tree: self,
                 node: node,
                 index: Some(index),
-                val: Some(&(*node).val)
+                val: Some(&(*node).val),
             })
         }
     }
@@ -271,7 +271,7 @@ impl<V: Ord + Sized + Default + Clone > Tree<V> {
             tree: self,
             node: sentinel,
             index: None,
-            val: None
+            val: None,
         }
     }
 
@@ -282,7 +282,7 @@ impl<V: Ord + Sized + Default + Clone > Tree<V> {
                 tree: self,
                 node: node,
                 index: Some(index),
-                val: Some(&(*node).val)
+                val: Some(&(*node).val),
             })
         }
     }
@@ -295,22 +295,22 @@ impl<V: Ord + Sized + Default + Clone > Tree<V> {
                 match (*node).val.cmp(val) {
                     cmp::Ordering::Less => {
                         node = (*node).right?.as_ptr();
-                    },
+                    }
                     cmp::Ordering::Equal => {
                         index += Node::get_right_count(node);
                         break;
-                    },
+                    }
                     cmp::Ordering::Greater => {
                         index += 1 + Node::get_right_count(node);
                         node = (*node).left?.as_ptr();
                     }
                 };
-            };
+            }
             Some(CursorMut {
                 tree: self,
                 node: node,
                 index: Some(index),
-                val: Some(&(*node).val)
+                val: Some(&(*node).val),
             })
         }
     }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Seek, Write};
+use std::io::{BufReader, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -26,7 +26,7 @@ pub struct Config {
 }
 
 pub struct AppState {
-    pub boards: Mutex<HashMap<String, Board<u64, f64>>>,
+    pub boards: Mutex<HashMap<String, Board<i64, f64>>>,
     pub api_keys: Mutex<HashMap<String, User>>,
     pub port: usize,
     pub save_interval: u64,
@@ -72,20 +72,44 @@ impl AppState {
         let mut keys = HashMap::new();
 
         for (name, json_board) in board_json {
-            let save_path = saves_path.join(format!("{name}.cbor"));
-            let board = Board::new();
-            // let board = match Board::from_file(&save_path) {
-            //     Ok(board) => board,
-            //     Err(err) => {
-            //         panic!(
-            //             "Failed to read save file ({}) for leaderboard {name}\n{err}",
-            //             match save_path.to_str() {
-            //                 Some(path) => path.to_string(),
-            //                 None => format!("/saves/{name}.cbor"),
-            //             }
-            //         );
-            //     }
-            // };
+            let save_path = saves_path.join(format!("{name}.board"));
+
+            let board;
+
+            if save_path.exists() {
+                let save_file = match File::open(save_path.clone()) {
+                    Err(err) => {
+                        panic!(
+                            "Failed to read file ({}) for leaderboard {name}\n{err}",
+                            match save_path.to_str() {
+                                Some(path) => path.to_string(),
+                                None => format!("/saves/{name}.board"),
+                            }
+                        );
+                    }
+                    Ok(v) => v,
+                };
+                let mut buf_reader = BufReader::new(save_file);
+
+                let tree =
+                    match bincode::decode_from_std_read(&mut buf_reader, bincode::config::standard()) {
+                        Err(err) => {
+                            panic!(
+                                "Failed to parse file ({}) for leaderboard {name}\n{err}",
+                                match save_path.to_str() {
+                                    Some(path) => path.to_string(),
+                                    None => format!("/saves/{name}.board"),
+                                }
+                            );
+                        }
+                        Ok(tree) => tree,
+                    };
+
+                board = Board::from_tree(tree);
+            } else {
+                board = Board::new();
+            }
+            
             boards.insert(name.clone(), board);
             for (key, user) in json_board.keys {
                 keys.insert(

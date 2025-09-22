@@ -107,7 +107,12 @@ impl<V: Ord + Sized + Default> Tree<V> {
         }
     }
 
-    pub(super) fn replace_node(&mut self, old_node: *mut Node<V>, old_ind: usize, new_val: V) -> Option<(V, NonNull<Node<V>>, usize)> {
+    pub(super) fn replace_node(
+        &mut self,
+        old_node: *mut Node<V>,
+        old_ind: usize,
+        new_val: V,
+    ) -> Option<(V, NonNull<Node<V>>, usize)> {
         let index_ret = self.index_of(&new_val);
         if index_ret.1 {
             return None;
@@ -124,7 +129,7 @@ impl<V: Ord + Sized + Default> Tree<V> {
                 let mut ret = new_val;
                 std::mem::swap(&mut (*old_node).val, &mut ret);
                 return Some((ret, NonNull::new_unchecked(old_node), new_ind));
-            } else if distance <= self.height()/5 {
+            } else if distance <= self.height() / 5 {
                 let mut nodes: Vec<*mut Node<V>> = Vec::with_capacity(distance + 1);
                 nodes.push(old_node);
 
@@ -140,7 +145,7 @@ impl<V: Ord + Sized + Default> Tree<V> {
                         nodes.push(progress_node);
                     }
                 }
-                
+
                 let val = self.shift_nodes(&mut nodes, new_val);
                 return Some((val, NonNull::new_unchecked(nodes.pop().unwrap()), new_ind));
             } else {
@@ -160,10 +165,10 @@ impl<V: Ord + Sized + Default> Tree<V> {
             let mut node1;
             let mut node2;
 
-            for i in 0..(nodes.len()-1) {
+            for i in 0..(nodes.len() - 1) {
                 node1 = nodes[i];
-                node2 = nodes[i+1];
-                
+                node2 = nodes[i + 1];
+
                 std::mem::swap(&mut (*node1).val, &mut (*node2).val);
             }
 
