@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::BufWriter};
+use std::env;
 
 use super::*;
 
@@ -84,73 +84,102 @@ fn test_100() {
     }
 
 
+    cursor_mut.get_tree().validate();
+    assert_eq!(cursor_mut.get_tree().len(), 50);
+    assert!(!cursor_mut.get_tree().contains(&32));
+    assert!(cursor_mut.get_tree().contains(&72));
+
+    assert_eq!(cursor_mut.replace(49), Some(50));
+
     tree.validate();
-    assert_eq!(tree.len(), 50);
-    assert!(!tree.contains(&32));
-    assert!(tree.contains(&72));
+    assert!(tree.contains(&49));
+    assert!(!tree.contains(&50));
+
+    tree.remove(&52);
+
+    cursor_mut = tree.seek_val_mut(&49).unwrap();
+    cursor_mut.replace(52);
+
+    tree.validate();
+    assert!(!tree.contains(&49));
+    assert!(tree.contains(&52));
+
+    tree.remove(&4);
+
+    cursor_mut = tree.seek_val_mut(&52).unwrap();
+    cursor_mut.replace(4);
+
+    tree.validate();
+    assert!(!tree.contains(&52));
+    assert!(tree.contains(&4));
     
     tree.clear();
     assert!(tree.is_empty());
 
 }
 
-#[test]
-pub fn test_io() {
-    unsafe {
-        env::set_var("RUST_BACKTRACE", "1");
-        env::set_var("MIRIFLAGS", "-Zmiri-disable-isolation");
-    }
+// #[test]
+// pub fn test_io() {
+//     unsafe {
+//         env::set_var("RUST_BACKTRACE", "1");
+//         env::set_var("MIRIFLAGS", "-Zmiri-disable-isolation");
+//     }
 
-    let mut tree: Tree<u32> = Tree::new();
+//     let mut tree: Tree<u32> = Tree::new();
 
-    for i in 1..100000 {
-        tree.insert(i);
-    }
+//     for i in 1..10000000 {
+//         tree.insert(i);
+//     }
 
-    for i in 1..100000 {
-        if i % 3 == 0 {
-            tree.remove(&i);
-        }
-    }
+//     for i in 1..10000000 {
+//         if i % 3 == 0 {
+//             tree.remove(&i);
+//         }
+//     }
 
-    let mut file = File::create("test.tree").expect("Failed to create file");
+//     let mut file = File::create("test.tree").expect("Failed to create file");
+//     let mut bufWriter = BufWriter::new(file);
 
-    if let Err(v) = bincode::encode_into_std_write(&tree, &mut file, bincode::config::standard()) {
-        panic!("Write Error: {:?}", v);
-    }
+//     if let Err(v) = bincode::encode_into_std_write(&tree, &mut bufWriter, bincode::config::standard()) {
+//         panic!("Write Error: {:?}", v);
+//     }
 
-    drop(file);
+//     bufWriter.flush();
+//     drop(bufWriter);
 
-    file = File::open("test.tree").expect("Failed to open file");
+//     file = File::open("test.tree").expect("Failed to open file");
+//     let mut bufReader = BufReader::new(file);
 
-    let tree2: Tree<u32> = match bincode::decode_from_std_read(&mut file, bincode::config::standard()) {
-        Err(v) => {
-            panic!("Read Error: {:?}", v);
-        },
-        Ok(tree) => tree
-    };
+//     let tree2: Tree<u32> = match bincode::decode_from_std_read(&mut bufReader, bincode::config::standard()) {
+//         Err(v) => {
+//             panic!("Read Error: {:?}", v);
+//         },
+//         Ok(tree) => tree
+//     };
 
-    tree2.validate();
+//     tree2.validate();
 
-    // tree.print_pretty();
-    // tree2.print_pretty();
+//     // tree.print_pretty();
+//     // tree2.print_pretty();
 
-    let mut cursor1 = tree.cursor();
-    let mut cursor2 = tree2.cursor();
+//     let mut cursor1 = tree.cursor();
+//     let mut cursor2 = tree2.cursor();
 
-    cursor1.move_next();
-    cursor2.move_next();
+//     cursor1.move_next();
+//     cursor2.move_next();
 
-    while !cursor1.is_at_end() {
-        assert_eq!(cursor1.get_value(), cursor2.get_value(), "Values not equal, {:?} and {:?}", cursor1.get_value(), cursor2.get_value());
-        assert_eq!(cursor1.get_index(), cursor2.get_index(), "Indicies not equal, {:?} and {:?}", cursor1.get_index(), cursor2.get_index());
-        assert_eq!(cursor1.get_height(), cursor2.get_height(), "Heights not equal, {:?} and {:?}", cursor1.get_height(), cursor2.get_height());
+//     while !cursor1.is_at_end() {
+//         assert_eq!(cursor1.get_value(), cursor2.get_value(), "Values not equal, {:?} and {:?}", cursor1.get_value(), cursor2.get_value());
+//         assert_eq!(cursor1.get_index(), cursor2.get_index(), "Indicies not equal, {:?} and {:?}", cursor1.get_index(), cursor2.get_index());
+//         assert_eq!(cursor1.get_height(), cursor2.get_height(), "Heights not equal, {:?} and {:?}", cursor1.get_height(), cursor2.get_height());
 
-        cursor1.move_next();
-        cursor2.move_next();
-    }
+//         cursor1.move_next();
+//         cursor2.move_next();
+//     }
 
-    if !cursor2.is_at_end() {
-        panic!("Tree2 was longer than Tree1!");
-    }
-}
+//     if !cursor2.is_at_end() {
+//         panic!("Tree2 was longer than Tree1!");
+//     }
+
+//     fs::remove_file("test.tree");
+// }

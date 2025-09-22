@@ -1,4 +1,4 @@
-use std::{cmp, ptr::NonNull};
+use std::cmp;
 
 use crate::board::tree::{node::Node};
 
@@ -168,6 +168,10 @@ macro_rules! cursor_impl {
                     return Some((*self.node).height);
                 }
             }
+
+            pub fn get_tree<'b>(&'b self) -> &'b Tree<V> {
+                return self.tree;
+            } 
         }
     };
 }
@@ -199,6 +203,14 @@ impl<'a, V: Ord + Sized + Default + Clone > CursorMut<'a, V> {
             self.tree.remove_node(target);
             return Some((*Box::from_raw(target)).val);
         }
+    }
+
+    pub fn replace(&mut self, val: V) -> Option<V> {
+        let ind = self.get_index()?;
+        let result = self.tree.replace_node(self.node, ind, val)?;
+        self.index = Some(result.2);
+        self.node = result.1.as_ptr();
+        return Some(result.0);
     }
 }
 

@@ -1,7 +1,6 @@
 use std::cmp;
 use std::fmt::Display;
 
-use super::Node;
 use super::Tree;
 use super::stacks::*;
 

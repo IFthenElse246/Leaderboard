@@ -1,6 +1,6 @@
 use std::cmp;
 
-use crate::board::tree::{node::Node, tree_struct::stacks::StackEntry};
+use crate::board::tree::node::Node;
 
 use super::Tree;
 

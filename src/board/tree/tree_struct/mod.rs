@@ -1,4 +1,4 @@
-use std::{fmt::Display, ptr::NonNull};
+use std::ptr::NonNull;
 
 mod constructors;
 mod read;

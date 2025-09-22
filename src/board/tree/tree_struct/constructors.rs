@@ -1,7 +1,5 @@
 use std::ptr::NonNull;
 
-use bincode::Decode;
-
 use super::Node;
 use super::Tree;
 use super::stacks::*;

@@ -1,4 +1,4 @@
-use super::EntryRef;
+use super::Entry;
 use super::Tree;
 use std::collections::HashMap;
 use std::ptr::NonNull;
@@ -11,12 +11,12 @@ fn current_time() -> u128 {
         .as_millis()
 }
 
-pub struct Board<K: Ord + Sized + Default = u64, V: PartialOrd + ?Sized = f64> {
-    tree: Tree<EntryRef<K, V>>,
-    map: HashMap<K, NonNull<EntryRef<K, V>>>,
+pub struct Board<K: PartialOrd + Sized + Default = u64, V: PartialOrd + Default + ?Sized = f64> {
+    tree: Tree<Entry<K, V>>,
+    map: HashMap<K, Entry<K, V>>,
 }
 
-impl<K: Ord + Sized + Default, V: PartialOrd + ?Sized> Board<K, V> {
+impl<K: Ord + Sized + Default, V: PartialOrd + Default + ?Sized> Board<K, V> {
     pub fn new() -> Self {
         Board {
             tree: Tree::new(),
@@ -25,5 +25,5 @@ impl<K: Ord + Sized + Default, V: PartialOrd + ?Sized> Board<K, V> {
     }
 }
 
-unsafe impl<K: Ord + Sized + Default + Send, V: PartialOrd + ?Sized + Send> Send for Board<K, V> {}
-unsafe impl<K: Ord + Sized + Default + Sync, V: PartialOrd + ?Sized + Sync> Sync for Board<K, V> {}
+unsafe impl<K: Ord + Sized + Default + Send, V: PartialOrd + Default + ?Sized + Send> Send for Board<K, V> {}
+unsafe impl<K: Ord + Sized + Default + Sync, V: PartialOrd + Default + ?Sized + Sync> Sync for Board<K, V> {}

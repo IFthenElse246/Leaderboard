@@ -1,11 +1,9 @@
 mod board;
 mod entry;
-mod entry_ref;
 mod tree;
 
 pub use board::Board;
 pub use entry::Entry;
-use entry_ref::EntryRef;
 use tree::Tree;
 
 // pub struct Board<T: PartialOrd + Serialize + for<'a> Deserialize<'a> = f64> {

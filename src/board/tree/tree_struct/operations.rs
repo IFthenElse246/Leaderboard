@@ -6,6 +6,10 @@ use super::stacks::*;
 
 impl<V: Ord + Sized + Default> Tree<V> {
     pub fn insert(&mut self, val: V) -> bool {
+        return self.insert_node(val).is_some();
+    }
+
+    pub(super) fn insert_node(&mut self, val: V) -> Option<NonNull<Node<V>>> {
         unsafe {
             if (*self.sentinel.as_ptr()).right.is_none() {
                 let node = NonNull::new_unchecked(Box::into_raw(Box::new(Node {
@@ -18,7 +22,7 @@ impl<V: Ord + Sized + Default> Tree<V> {
                     val: val,
                 })));
                 (*self.sentinel.as_ptr()).right = Some(node);
-                return true;
+                return Some(node);
             }
 
             // left is true, right is false
@@ -28,7 +32,7 @@ impl<V: Ord + Sized + Default> Tree<V> {
             loop {
                 match val.cmp(&(*parent).val) {
                     cmp::Ordering::Equal => {
-                        return false;
+                        return None;
                     }
                     cmp::Ordering::Greater => {
                         dir = false;
@@ -65,7 +69,108 @@ impl<V: Ord + Sized + Default> Tree<V> {
 
             self.recursive_fix_up(parent);
 
-            return true;
+            return Some(new_node);
+        }
+    }
+
+    pub fn replace(&mut self, old_val: &V, new_val: V) -> Option<V> {
+        let mut ind: usize = 0;
+        unsafe {
+            let mut parent = match (*self.sentinel.as_ptr()).right {
+                None => {
+                    return None;
+                }
+                Some(ptr) => ptr.as_ptr(),
+            };
+
+            loop {
+                match old_val.cmp(&(*parent).val) {
+                    cmp::Ordering::Equal => {
+                        ind += Node::get_right_count(parent);
+                        return Some(self.replace_node(parent, ind, new_val)?.0);
+                    }
+                    cmp::Ordering::Greater => {
+                        if (*parent).right.is_none() {
+                            return None;
+                        }
+                        parent = (*parent).right.unwrap().as_ptr();
+                    }
+                    cmp::Ordering::Less => {
+                        ind += 1 + Node::get_right_count(parent);
+                        if (*parent).left.is_none() {
+                            return None;
+                        }
+                        parent = (*parent).left.unwrap().as_ptr();
+                    }
+                };
+            }
+        }
+    }
+
+    pub(super) fn replace_node(&mut self, old_node: *mut Node<V>, old_ind: usize, new_val: V) -> Option<(V, NonNull<Node<V>>, usize)> {
+        let index_ret = self.index_of(&new_val);
+        if index_ret.1 {
+            return None;
+        }
+
+        let mut new_ind = index_ret.0;
+        if new_ind > old_ind {
+            new_ind -= 1;
+        }
+        let distance = new_ind.abs_diff(old_ind);
+
+        unsafe {
+            if distance == 0 {
+                let mut ret = new_val;
+                std::mem::swap(&mut (*old_node).val, &mut ret);
+                return Some((ret, NonNull::new_unchecked(old_node), new_ind));
+            } else if distance <= self.height()/5 {
+                let mut nodes: Vec<*mut Node<V>> = Vec::with_capacity(distance + 1);
+                nodes.push(old_node);
+
+                let mut progress_node = old_node;
+                if new_ind > old_ind {
+                    for _ in 0..distance {
+                        progress_node = Node::prev_node(progress_node);
+                        nodes.push(progress_node);
+                    }
+                } else {
+                    for _ in 0..distance {
+                        progress_node = Node::next_node(progress_node);
+                        nodes.push(progress_node);
+                    }
+                }
+                
+                let val = self.shift_nodes(&mut nodes, new_val);
+                return Some((val, NonNull::new_unchecked(nodes.pop().unwrap()), new_ind));
+            } else {
+                self.remove_node(old_node);
+                let result = self.insert_node(new_val).unwrap();
+                return Some((Box::from_raw(old_node).val, result, new_ind));
+            }
+        }
+    }
+
+    fn shift_nodes(&mut self, nodes: &mut Vec<*mut Node<V>>, fill_val: V) -> V {
+        if nodes.len() < 2 {
+            panic!("Attempt to shift with 1 or fewer nodes!")
+        }
+
+        unsafe {
+            let mut node1;
+            let mut node2;
+
+            for i in 0..(nodes.len()-1) {
+                node1 = nodes[i];
+                node2 = nodes[i+1];
+                
+                std::mem::swap(&mut (*node1).val, &mut (*node2).val);
+            }
+
+            let mut ret = fill_val;
+            std::mem::swap(&mut (**nodes.last().unwrap()).val, &mut ret);
+
+            return ret;
         }
     }
 
@@ -93,7 +198,7 @@ impl<V: Ord + Sized + Default> Tree<V> {
         }
     }
 
-    pub(super) unsafe fn remove_node(&mut self, node: *mut Node<V>) {
+    pub(super) fn remove_node(&mut self, node: *mut Node<V>) {
         unsafe {
             let parent: *mut Node<V> = match (*node).parent {
                 Some(v) => v.as_ptr(),
