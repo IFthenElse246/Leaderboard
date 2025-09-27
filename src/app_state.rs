@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Seek, Write};
+use std::io::{self, BufReader, Seek, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -12,6 +12,7 @@ use crate::util;
 #[derive(Serialize, Deserialize)]
 pub struct ConfigBoard {
     pub keys: HashMap<String, ConfigUser>,
+    pub cap: Option<usize>
 }
 
 #[derive(Serialize, Deserialize)]
@@ -73,8 +74,16 @@ impl AppState {
 
         for (name, json_board) in board_json {
             let save_path = saves_path.join(format!("{name}.board"));
+            let alt_path = saves_path.join(format!("{name}_saving.part"));
 
-            let board;
+            let mut board;
+
+            if !save_path.exists() && alt_path.exists() {
+                let result = std::fs::rename(&alt_path, &save_path);
+                if let Err(err) = result {
+                    panic!("Failed to recover save file.\n{}", err)
+                }
+            }
 
             if save_path.exists() {
                 let save_file = match File::open(save_path.clone()) {
@@ -106,8 +115,19 @@ impl AppState {
                     };
 
                 board = Board::from_tree(tree);
+
+                if alt_path.exists() {
+                    let _ = std::fs::remove_file(alt_path);
+                }
             } else {
                 board = Board::new();
+                let _ = writeln!(&mut io::stdout().lock(), "Failed to find .board file for board {name}. Using empty board.");
+            }
+
+            if let Some(cap) = json_board.cap {
+                board.set_size_cap(cap);
+            } else {
+                board.remove_size_cap();
             }
             
             boards.insert(name.clone(), board);
@@ -137,33 +157,80 @@ impl AppState {
 
         for (k, user) in users.iter() {
             let board_name = user.board.clone();
+            let binding = self.boards.lock().unwrap();
+            let actual_board = binding.get(&board_name);
+            let cap = match actual_board {
+                None => None,
+                Some(v) => v.get_size_cap()
+            };
             if !json.contains_key(&board_name) {
                 let board = ConfigBoard {
                     keys: HashMap::new(),
+                    cap: cap
                 };
                 json.insert(board_name.clone(), board);
             }
             let json_board = json.get_mut(&board_name).unwrap();
+            json_board.cap = cap;
             json_board
                 .keys
                 .insert(k.to_string(), ConfigUser { write: user.write });
+        }
+
+        let boards = self.boards.lock().unwrap();
+        for (board_name, board) in boards.iter() {
+            if !json.contains_key(board_name) {
+                let board = ConfigBoard {
+                    keys: HashMap::new(),
+                    cap: board.get_size_cap()
+                };
+                json.insert(board_name.clone(), board);
+            }
         }
 
         let mut file = self
             .boards_file
             .lock()
             .expect("Could not update the boards file.");
+        let _ = file.set_len(0);
         file.write_all(serde_json::to_string_pretty(&json).unwrap().as_bytes())
             .expect("Could not update the boards file.");
         file.rewind().expect("Could not update the boards file.");
     }
 
-    pub fn create_board(&self, name: &String) -> bool {
+    pub fn create_board(&self, name: String) -> bool {
         let mut boards = self.boards.lock().unwrap();
-        if boards.contains_key(name) {
+        if boards.contains_key(&name) {
             return false;
         }
-        boards.insert(name.clone(), Board::new());
+        boards.insert(name, Board::new());
+        let _ = drop(boards);
+        self.write_boards_json();
+        return true;
+    }
+
+    pub fn set_board_cap(&self, board: &String, cap: usize) -> bool {
+        let mut boards = self.boards.lock().unwrap();
+
+        let board = match boards.get_mut(board) {
+            Some(v) => v,
+            None => {return false;}
+        };
+        board.set_size_cap(cap);
+        let _ = drop(boards);
+        self.write_boards_json();
+        return true;
+    }
+
+    pub fn rem_board_cap(&self, board: &String) -> bool {
+        let mut boards = self.boards.lock().unwrap();
+
+        let board = match boards.get_mut(board) {
+            Some(v) => v,
+            None => {return false;}
+        };
+        board.remove_size_cap();
+        let _ = drop(boards);
         self.write_boards_json();
         return true;
     }
@@ -177,7 +244,8 @@ impl AppState {
 
         let mut users = self.api_keys.lock().unwrap();
         users.retain(|_k, usr| -> bool { usr.board != *name });
-
+        let _ = drop(boards);
+        let _ = drop(users);
         self.write_boards_json();
         return true;
     }
@@ -194,6 +262,7 @@ impl AppState {
                 write: write,
             },
         );
+        let _ = drop(users);
         self.write_boards_json();
         return true;
     }
@@ -204,6 +273,7 @@ impl AppState {
             return false;
         }
         users.remove(api_key);
+        let _ = drop(users);
         self.write_boards_json();
         return true;
     }
@@ -214,6 +284,7 @@ impl AppState {
             return false;
         }
         users.get_mut(api_key).unwrap().write = write;
+        let _ = drop(users);
         self.write_boards_json();
         return true;
     }

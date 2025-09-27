@@ -25,7 +25,7 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
     let stdout = io::stdout();
     let _ = writeln!(&mut stdout.lock(), "Starting backup");
 
-    let temp_path = saves_path.join("temp");
+    
 
     let queue_lock = state_arc.boards.lock().unwrap();
 
@@ -40,6 +40,9 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
 
         if let Some(board) = lock.get(name) {
             let _ = writeln!(&mut stdout.lock(), "Saving {name}...");
+
+            let temp_path = saves_path.join(format!("{name}_saving.part"));
+
             let new_tree = board.get_tree_copy();
 
             drop(lock);
@@ -128,15 +131,24 @@ pub fn execute_update(interaction: &Interaction, dat: String) -> Result<String, 
     }
     let json = json_res.unwrap();
     match update_entry(interaction, json.id, json.value) {
-        true => Ok(format!("Successfully updated {0}.", json.id)),
-        false => Ok(format!("Added player {0} and updated.", json.id)),
+        Ok(b) => match b {
+            true => Ok(format!("Successfully updated {0}.", json.id)),
+            false => Ok(format!("Added player {0} and updated.", json.id)),
+        },
+        Err(v) => Ok(format!("Failed to add player {0}: {1}", json.id, v))
     }
 }
 
-pub fn update_entry(interaction: &Interaction, id: i64, value: f64) -> bool {
+pub fn update_entry(interaction: &Interaction, id: i64, value: f64) -> Result<bool, String> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.update_entry(id, value)
+}
+
+pub fn remove_entry(interaction: &Interaction, id: i64) -> bool {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.remove_entry(&id).is_some()
 }
 
 pub fn get_points(interaction: &Interaction, id: &i64) -> Option<f64> {
@@ -161,4 +173,16 @@ pub fn clear(interaction: &Interaction) {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.clear()
+}
+
+pub fn get_top(interaction: &Interaction, count: usize) -> Vec<(usize, crate::board::Entry<i64, f64>)> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_top(count)
+}
+
+pub fn get_bottom(interaction: &Interaction, count: usize) -> Vec<(usize, crate::board::Entry<i64, f64>)> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_bottom(count)
 }
