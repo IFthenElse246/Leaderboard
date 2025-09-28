@@ -32,6 +32,7 @@ pub struct AppState {
     pub port: usize,
     pub save_interval: u64,
     pub boards_file: Mutex<File>,
+    pub saves_path: PathBuf
 }
 
 impl AppState {
@@ -148,6 +149,7 @@ impl AppState {
             port: json.port,
             save_interval: json.save_interval,
             boards_file: Mutex::new(boards_file),
+            saves_path: saves_path.clone()
         }
     }
 
@@ -199,12 +201,47 @@ impl AppState {
     }
 
     pub fn create_board(&self, name: String) -> bool {
-        let mut boards = self.boards.lock().unwrap();
-        if boards.contains_key(&name) {
+        if self.boards.lock().unwrap().contains_key(&name) {
             return false;
         }
-        boards.insert(name, Board::new());
-        let _ = drop(boards);
+
+        let save_path = self.saves_path.join(format!("{name}.board"));
+        let board;
+
+        if save_path.exists() {
+            let save_file = match File::open(save_path.clone()) {
+                Err(err) => {
+                    panic!(
+                        "Failed to read file ({}) for leaderboard {name}\n{err}",
+                        match save_path.to_str() {
+                            Some(path) => path.to_string(),
+                            None => format!("/saves/{name}.board"),
+                        }
+                    );
+                }
+                Ok(v) => v,
+            };
+            let mut buf_reader = BufReader::new(save_file);
+
+            let tree =
+                match bincode::decode_from_std_read(&mut buf_reader, bincode::config::standard()) {
+                    Err(err) => {
+                        panic!(
+                            "Failed to parse file ({}) for leaderboard {name}\n{err}",
+                            match save_path.to_str() {
+                                Some(path) => path.to_string(),
+                                None => format!("/saves/{name}.board"),
+                            }
+                        );
+                    }
+                    Ok(tree) => tree,
+                };
+            board = Board::from_tree(tree);
+        } else {
+            board = Board::new()
+        }
+
+        self.boards.lock().unwrap().insert(name, board);
         self.write_boards_json();
         return true;
     }
@@ -246,19 +283,25 @@ impl AppState {
         users.retain(|_k, usr| -> bool { usr.board != *name });
         let _ = drop(boards);
         let _ = drop(users);
+
+        let save_path = self.saves_path.join(format!("{name}.board"));
+        if save_path.exists() {
+            let _ = std::fs::remove_file(save_path);
+        }
+        
         self.write_boards_json();
         return true;
     }
 
-    pub fn create_user(&self, api_key: &String, board: &String, write: bool) -> bool {
+    pub fn create_key(&self, api_key: String, board: String, write: bool) -> bool {
         let mut users = self.api_keys.lock().unwrap();
-        if users.contains_key(api_key) {
+        if users.contains_key(&api_key) {
             return false;
         }
         users.insert(
-            api_key.clone(),
+            api_key,
             User {
-                board: board.clone(),
+                board: board,
                 write: write,
             },
         );
@@ -267,7 +310,7 @@ impl AppState {
         return true;
     }
 
-    pub fn delete_user(&self, api_key: &String) -> bool {
+    pub fn delete_key(&self, api_key: &String) -> bool {
         let mut users = self.api_keys.lock().unwrap();
         if !users.contains_key(api_key) {
             return false;
@@ -278,7 +321,7 @@ impl AppState {
         return true;
     }
 
-    pub fn set_user_write_perms(&self, api_key: &String, write: bool) -> bool {
+    pub fn set_key_write_perms(&self, api_key: &String, write: bool) -> bool {
         let mut users = self.api_keys.lock().unwrap();
         if !users.contains_key(api_key) {
             return false;

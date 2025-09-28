@@ -54,6 +54,22 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         return Ok(true);
     }
 
+    pub fn get_ids(&self) -> Vec<K> {
+        let mut ret = Vec::with_capacity(self.get_size());
+
+        let mut cursor = self.tree.cursor();
+
+        loop {
+            let val = cursor.move_next();
+            match val {
+                Some(v) => {ret.push(v.key.clone());},
+                None => {break;}
+            }
+        }
+
+        return ret;
+    }
+
     pub fn remove_entry(&mut self, id: &K) -> Option<Entry<K, V>> {
         let entry = self.map.remove(id)?;
         self.tree.remove(&entry);
@@ -127,6 +143,10 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         return Some(self.tree.index_of(entry).0 + 1);
     }
 
+    pub fn at_rank(&self, rank: usize) -> Option<Entry<K,V>> {
+        return self.tree.at_index(rank - 1).map(|v| v.clone());
+    }
+
     pub fn get_size(&self) -> usize {
         self.tree.len()
     }
@@ -140,7 +160,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             cursor.move_prev();
             if let Some(v) = cursor.get_value() {
                 let entry = v.clone();
-                ret.push((cursor.get_index().unwrap(), entry));
+                ret.push((cursor.get_index().unwrap() + 1, entry));
             } else {
                 break;
             }
@@ -158,7 +178,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             cursor.move_next();
             if let Some(v) = cursor.get_value() {
                 let entry = v.clone();
-                ret.push((cursor.get_index().unwrap(), entry));
+                ret.push((cursor.get_index().unwrap() + 1, entry));
             } else {
                 break;
             }
@@ -180,6 +200,42 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         }
     }
 
+    pub fn get_around(&self, id: &K, before: usize, after: usize) -> Option<Vec<(usize, Entry<K, V>)>> {
+        let entry = self.map.get(id)?;
+        let mut ret = Vec::with_capacity(before + after + 1);
+
+        let mut cursor = self.tree.seek_val(entry)?;
+        let mut cursor2 = cursor.clone();
+
+        for _i in 0..before {
+            let val = cursor2.move_next();
+            if let Some(v) = val {
+                let entry = v.clone();
+                ret.push((cursor2.get_index().unwrap() + 1, entry));
+            } else {
+                break;
+            }
+        }
+
+        ret.reverse();
+
+        ret.push((cursor.get_index()?, cursor.get_value().unwrap().clone()));
+
+        for _i in 0..after {
+            let val = cursor.move_prev();
+            if let Some(v) = val {
+                let entry = v.clone();
+                ret.push((cursor.get_index().unwrap() + 1, entry));
+            } else {
+                break;
+            }
+        }
+
+        ret.shrink_to_fit();
+
+        return Some(ret);
+    }
+
     pub fn get_after(&self, id: &K, count: usize) -> Option<Vec<(usize, Entry<K, V>)>> {
         let entry = self.map.get(id)?;
         let mut ret = Vec::with_capacity(count);
@@ -189,13 +245,41 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             cursor.move_prev();
             if let Some(v) = cursor.get_value() {
                 let entry = v.clone();
-                ret.push((cursor.get_index().unwrap(), entry));
+                ret.push((cursor.get_index().unwrap() + 1, entry));
             } else {
                 break;
             }
         }
 
+        ret.shrink_to_fit();
+
         Some(ret)
+    }
+
+    pub fn get_range(&self, start_rank: usize, end_rank: usize) -> Vec<(usize, Entry<K, V>)> {
+        if end_rank < start_rank {return Vec::new();}
+        let num = end_rank - start_rank + 1;
+        let mut ret = Vec::with_capacity(num);
+
+        let mut cursor = match self.tree.seek_index(start_rank - 1) {
+            Some(v) => v,
+            None => {
+                return Vec::new()
+            }
+        };
+        for _i in 0..num {
+            if let Some(v) = cursor.get_value() {
+                let entry = v.clone();
+                ret.push((cursor.get_index().unwrap() + 1, entry));
+                cursor.move_prev();
+            } else {
+                break;
+            }
+        }
+
+        ret.shrink_to_fit();
+
+        return ret;
     }
 
     pub fn get_before(&self, id: &K, count: usize) -> Option<Vec<(usize, Entry<K, V>)>> {
@@ -207,11 +291,13 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             cursor.move_next();
             if let Some(v) = cursor.get_value() {
                 let entry = v.clone();
-                ret.push((cursor.get_index().unwrap(), entry));
+                ret.push((cursor.get_index().unwrap() + 1, entry));
             } else {
                 break;
             }
         }
+
+        ret.shrink_to_fit();
 
         Some(ret)
     }

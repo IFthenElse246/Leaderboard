@@ -157,6 +157,12 @@ pub fn get_points(interaction: &Interaction, id: &i64) -> Option<f64> {
     Some(board.get_entry(id)?.points)
 }
 
+pub fn get_entry(interaction: &Interaction, id: &i64) -> Option<crate::board::Entry<i64,f64>> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_entry(id).map(|v| v.clone())
+}
+
 pub fn get_size(interaction: &Interaction) -> usize {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
@@ -167,6 +173,12 @@ pub fn get_rank(interaction: &Interaction, id: &i64) -> Option<usize> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_rank(id)
+}
+
+pub fn at_rank(interaction: &Interaction, rank: usize) -> Option<crate::board::Entry<i64, f64>> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.at_rank(rank)
 }
 
 pub fn clear(interaction: &Interaction) {
@@ -185,4 +197,28 @@ pub fn get_bottom(interaction: &Interaction, count: usize) -> Vec<(usize, crate:
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_bottom(count)
+}
+
+pub fn get_after(interaction: &Interaction, id: &i64, count: usize) -> Option<Vec<(usize, crate::board::Entry<i64, f64>)>> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_after(id, count)
+}
+
+pub fn get_before(interaction: &Interaction, id: &i64, count: usize) -> Option<Vec<(usize, crate::board::Entry<i64, f64>)>> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_before(id, count)
+}
+
+pub fn get_around(interaction: &Interaction, id: &i64, before: usize, after: usize) -> Option<Vec<(usize, crate::board::Entry<i64, f64>)>> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_around(id, before, after)
+}
+
+pub fn get_range(interaction: &Interaction, start: usize, end: usize) -> Vec<(usize, crate::board::Entry<i64, f64>)> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_range(start, end)
 }
