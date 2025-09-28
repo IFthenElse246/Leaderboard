@@ -1,8 +1,9 @@
 use std::{
-    io::{self, BufRead, Write},
+    fs::File,
+    io::{self, BufRead, BufReader, BufWriter, Write},
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::{Instant}
+    time::Instant,
 };
 
 use rand::distr::{Distribution, Uniform};
@@ -125,7 +126,7 @@ pub fn execute_command(
                             &mut stdout.lock(),
                             "Updated {user_id} to have {points} points."
                         );
-                    },
+                    }
                     false => {
                         let _ = writeln!(
                             &mut stdout.lock(),
@@ -134,10 +135,7 @@ pub fn execute_command(
                     }
                 },
                 Err(v) => {
-                    let _ = writeln!(
-                        &mut stdout.lock(),
-                        "Failed to add {user_id}:\n{v}."
-                    );
+                    let _ = writeln!(&mut stdout.lock(), "Failed to add {user_id}:\n{v}.");
                 }
             }
         }
@@ -168,19 +166,10 @@ pub fn execute_command(
                 return;
             }
 
-            if backend::remove_entry(
-                &create_interaction(&current_user, &cmd_arc),
-                user_id
-            ) {
-                let _ = writeln!(
-                    &mut stdout.lock(),
-                    "Removed {user_id}."
-                );
+            if backend::remove_entry(&create_interaction(&current_user, &cmd_arc), user_id) {
+                let _ = writeln!(&mut stdout.lock(), "Removed {user_id}.");
             } else {
-                let _ = writeln!(
-                    &mut stdout.lock(),
-                    "{user_id} is not on the leaderboard."
-                );
+                let _ = writeln!(&mut stdout.lock(), "{user_id} is not on the leaderboard.");
             }
         }
         "get" => {
@@ -246,8 +235,16 @@ pub fn execute_command(
                 return;
             }
 
-            for entry in backend::get_top(&create_interaction(&current_user, &cmd_arc), count).iter() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t{}\t({} points)", entry.0, entry.1.key, entry.1.points);
+            for entry in
+                backend::get_top(&create_interaction(&current_user, &cmd_arc), count).iter()
+            {
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t{}\t({} points)",
+                    entry.0,
+                    entry.1.key,
+                    entry.1.points
+                );
             }
         }
         "after" => {
@@ -272,7 +269,7 @@ pub fn execute_command(
                 }
             };
 
-            let count = match params.get(1) {
+            let count = match params.get(2) {
                 Some(b) => match b.parse::<usize>() {
                     Ok(id) => id,
                     Err(_) => {
@@ -291,7 +288,11 @@ pub fn execute_command(
                 return;
             }
 
-            let result = match backend::get_after(&create_interaction(&current_user, &cmd_arc), &user_id, count) {
+            let result = match backend::get_after(
+                &create_interaction(&current_user, &cmd_arc),
+                &user_id,
+                count,
+            ) {
                 Some(v) => v,
                 None => {
                     let _ = writeln!(&mut stdout.lock(), "User id {user_id} is not in the board.");
@@ -300,7 +301,13 @@ pub fn execute_command(
             };
 
             for entry in result.iter() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t{}\t({} points)", entry.0, entry.1.key, entry.1.points);
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t{}\t({} points)",
+                    entry.0,
+                    entry.1.key,
+                    entry.1.points
+                );
             }
         }
         "before" => {
@@ -325,7 +332,7 @@ pub fn execute_command(
                 }
             };
 
-            let count = match params.get(1) {
+            let count = match params.get(2) {
                 Some(b) => match b.parse::<usize>() {
                     Ok(id) => id,
                     Err(_) => {
@@ -344,7 +351,11 @@ pub fn execute_command(
                 return;
             }
 
-            let result = match backend::get_before(&create_interaction(&current_user, &cmd_arc), &user_id, count) {
+            let result = match backend::get_before(
+                &create_interaction(&current_user, &cmd_arc),
+                &user_id,
+                count,
+            ) {
                 Some(v) => v,
                 None => {
                     let _ = writeln!(&mut stdout.lock(), "User id {user_id} is not in the board.");
@@ -353,7 +364,13 @@ pub fn execute_command(
             };
 
             for entry in result.iter().rev() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t{}\t({} points)", entry.0, entry.1.key, entry.1.points);
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t{}\t({} points)",
+                    entry.0,
+                    entry.1.key,
+                    entry.1.points
+                );
             }
         }
         "around" => {
@@ -378,7 +395,7 @@ pub fn execute_command(
                 }
             };
 
-            let before = match params.get(1) {
+            let before = match params.get(2) {
                 Some(b) => match b.parse::<usize>() {
                     Ok(id) => id,
                     Err(_) => {
@@ -392,7 +409,7 @@ pub fn execute_command(
                 }
             };
 
-            let after = match params.get(1) {
+            let after = match params.get(3) {
                 Some(b) => match b.parse::<usize>() {
                     Ok(id) => id,
                     Err(_) => {
@@ -411,7 +428,12 @@ pub fn execute_command(
                 return;
             }
 
-            let result = match backend::get_around(&create_interaction(&current_user, &cmd_arc), &user_id, before, after) {
+            let result = match backend::get_around(
+                &create_interaction(&current_user, &cmd_arc),
+                &user_id,
+                before,
+                after,
+            ) {
                 Some(v) => v,
                 None => {
                     let _ = writeln!(&mut stdout.lock(), "User id {user_id} is not in the board.");
@@ -420,7 +442,13 @@ pub fn execute_command(
             };
 
             for entry in result.iter() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t{}\t({} points)", entry.0, entry.1.key, entry.1.points);
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t{}\t({} points)",
+                    entry.0,
+                    entry.1.key,
+                    entry.1.points
+                );
             }
         }
         "range" => {
@@ -445,7 +473,7 @@ pub fn execute_command(
                 }
             };
 
-            let end = match params.get(1) {
+            let end = match params.get(2) {
                 Some(b) => match b.parse::<usize>() {
                     Ok(id) => id,
                     Err(_) => {
@@ -464,15 +492,25 @@ pub fn execute_command(
                 return;
             }
 
-            let result = backend::get_range(&create_interaction(&current_user, &cmd_arc), start, end);
+            let result =
+                backend::get_range(&create_interaction(&current_user, &cmd_arc), start, end);
 
             if result.len() == 0 {
-                let _ = writeln!(&mut stdout.lock(), "There are no entries with ranks between {start} and {end}.");
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "There are no entries with ranks between {start} and {end}."
+                );
                 return;
             }
 
             for entry in result.iter() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t{}\t({} points)", entry.0, entry.1.key, entry.1.points);
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t{}\t({} points)",
+                    entry.0,
+                    entry.1.key,
+                    entry.1.points
+                );
             }
         }
         "bottom" => {
@@ -502,8 +540,17 @@ pub fn execute_command(
                 return;
             }
 
-            for entry in backend::get_bottom(&create_interaction(&current_user, &cmd_arc), count).iter().rev() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t{}\t({} points)", entry.0, entry.1.key, entry.1.points);
+            for entry in backend::get_bottom(&create_interaction(&current_user, &cmd_arc), count)
+                .iter()
+                .rev()
+            {
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t{}\t({} points)",
+                    entry.0,
+                    entry.1.key,
+                    entry.1.points
+                );
             }
         }
         "rank" => {
@@ -731,14 +778,13 @@ pub fn execute_command(
                 return;
             }
 
-
             let cap = match params.get(1) {
                 Some(&"-1") => {
                     let board_name = current_user.lock().unwrap().as_ref().unwrap().board.clone();
                     cmd_arc.rem_board_cap(&board_name);
                     let _ = writeln!(&mut stdout.lock(), "Board size cap removed.");
                     return;
-                },
+                }
                 Some(b) => match b.parse::<usize>() {
                     Ok(v) => v,
                     Err(_) => {
@@ -759,7 +805,7 @@ pub fn execute_command(
                     return;
                 }
             };
-            
+
             let board_name = current_user.lock().unwrap().as_ref().unwrap().board.clone();
             cmd_arc.set_board_cap(&board_name, cap);
 
@@ -794,23 +840,36 @@ pub fn execute_command(
                 Some(&"") | None => {
                     let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
                     return;
-                },
-                Some(b) => b
+                }
+                Some(b) => b,
             };
 
             for c in name.chars() {
                 let ascii = c.to_ascii_uppercase() as u8;
-                if (ascii >= 65 && ascii <= 90) || (ascii == 95) || (ascii == 45) || (ascii == 46) || (ascii >= 48 && ascii <= 57) {
+                if (ascii >= 65 && ascii <= 90)
+                    || (ascii == 95)
+                    || (ascii == 45)
+                    || (ascii == 46)
+                    || (ascii >= 48 && ascii <= 57)
+                {
                     continue;
                 }
-                let _ = writeln!(&mut stdout.lock(), "Invalid character \"{}\" in board name.", c);
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "Invalid character \"{}\" in board name.",
+                    c
+                );
                 return;
             }
-            
+
             if cmd_arc.create_board(name.to_string()) {
                 let _ = writeln!(&mut stdout.lock(), "Created board \"{}\".", name);
             } else {
-                let _ = writeln!(&mut stdout.lock(), "Board already exists with name \"{}\".", name);
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "Board already exists with name \"{}\".",
+                    name
+                );
             }
         }
         "del_board" => {
@@ -827,7 +886,11 @@ pub fn execute_command(
             }
 
             let board_name = current_user.lock().unwrap().as_ref().unwrap().board.clone();
-            let _ = writeln!(&mut stdout.lock(), "Are you want to delete board {} and all of its contents and data? This data cannot be retrieved.", board_name);
+            let _ = writeln!(
+                &mut stdout.lock(),
+                "Are you want to delete board {} and all of its contents and data? This data cannot be retrieved.",
+                board_name
+            );
 
             if confirm_action() {
                 let _ = writeln!(&mut stdout.lock(), "Deleting....");
@@ -856,8 +919,15 @@ pub fn execute_command(
             let mut ind = 0;
 
             for (key, user) in keys.iter() {
-                if user.board != board_name {continue;}
-                let _ = writeln!(&mut stdout.lock(), "{}:\t\t{}", key, if user.write {"write"} else {"read"});
+                if user.board != board_name {
+                    continue;
+                }
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t\t{}",
+                    key,
+                    if user.write { "write" } else { "read" }
+                );
                 ind += 1;
             }
 
@@ -880,7 +950,13 @@ pub fn execute_command(
                 return;
             }
             for (key, user) in keys.iter() {
-                let _ = writeln!(&mut stdout.lock(), "{}:\t\t{}\t{}", key, user.board, if user.write {"write"} else {"read"});
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "{}:\t\t{}\t{}",
+                    key,
+                    user.board,
+                    if user.write { "write" } else { "read" }
+                );
             }
         }
         "new_key" => {
@@ -900,8 +976,8 @@ pub fn execute_command(
                 Some(&"") | None => {
                     let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
                     return;
-                },
-                Some(b) => b
+                }
+                Some(b) => b,
             };
 
             let w = match params.get(2) {
@@ -916,7 +992,11 @@ pub fn execute_command(
             let board_name = current_user.lock().unwrap().as_ref().unwrap().board.clone();
 
             if cmd_arc.create_key(key.to_string(), board_name.clone(), w) {
-                let _ = writeln!(&mut stdout.lock(), "Added API Key {key} to board {board_name} {} write access.", if w {"with"} else {"without"});
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "Added API Key {key} to board {board_name} {} write access.",
+                    if w { "with" } else { "without" }
+                );
             } else {
                 let _ = writeln!(&mut stdout.lock(), "API Key {key} already in use!");
             }
@@ -933,8 +1013,8 @@ pub fn execute_command(
                 Some(&"") | None => {
                     let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
                     return;
-                },
-                Some(b) => b
+                }
+                Some(b) => b,
             };
 
             if cmd_arc.delete_key(&key.to_string()) {
@@ -955,8 +1035,8 @@ pub fn execute_command(
                 Some(&"") | None => {
                     let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
                     return;
-                },
-                Some(b) => b
+                }
+                Some(b) => b,
             };
 
             let write = match params.get(2) {
@@ -969,7 +1049,11 @@ pub fn execute_command(
             };
 
             if cmd_arc.set_key_write_perms(&key.to_string(), write) {
-                let _ = writeln!(&mut stdout.lock(), "Set API Key {key} to {} write access on its board.", if write {"have"} else {"not have"});
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "Set API Key {key} to {} write access on its board.",
+                    if write { "have" } else { "not have" }
+                );
             } else {
                 let _ = writeln!(&mut stdout.lock(), "No API Key {key}!");
             }
@@ -990,7 +1074,7 @@ pub fn execute_command(
             let interaction = create_interaction(current_user, cmd_arc);
             let mut binding = interaction.state.boards.lock().unwrap();
             let board = binding.get_mut(&interaction.user.board).unwrap();
-            
+
             if board.get_size_cap().is_none() || board.get_size() <= board.get_size_cap().unwrap() {
                 let _ = writeln!(&mut stdout.lock(), "Nothing to trim.");
             }
@@ -1020,7 +1104,7 @@ pub fn execute_command(
             if ind == 0 {
                 let _ = writeln!(&mut stdout.lock(), "No boards to display.");
             }
-        },
+        }
         "stress_test" => {
             let usage_msg = "Usage: stress_test <board_size>";
 
@@ -1111,13 +1195,23 @@ pub fn execute_command(
                 num_writes += 1;
             }
 
-            let _ = writeln!(&mut stdout.lock(), "Made {num_writes} update operations in {} ms.", start.elapsed().as_millis());
+            let _ = writeln!(
+                &mut stdout.lock(),
+                "Made {num_writes} update operations in {} ms.",
+                start.elapsed().as_millis()
+            );
 
-            let write_time = start.elapsed().as_secs_f64()/(num_writes as f64);
+            let write_time = start.elapsed().as_secs_f64() / (num_writes as f64);
 
             let _ = writeln!(&mut stdout.lock(), "Preparing...");
 
-            let ids: Vec<i64> = cmd_arc.boards.lock().unwrap().get(&board_name).unwrap().get_ids();
+            let ids: Vec<i64> = cmd_arc
+                .boards
+                .lock()
+                .unwrap()
+                .get(&board_name)
+                .unwrap()
+                .get_ids();
             let ind_range = Uniform::try_from(0..ids.len()).unwrap();
 
             let _ = writeln!(&mut stdout.lock(), "Performing retrieval around test...");
@@ -1138,9 +1232,13 @@ pub fn execute_command(
                 num_reads += 1;
             }
 
-            let _ = writeln!(&mut stdout.lock(), "Made {num_reads} retrieval around operations in {} ms.", start.elapsed().as_millis());
+            let _ = writeln!(
+                &mut stdout.lock(),
+                "Made {num_reads} retrieval around operations in {} ms.",
+                start.elapsed().as_millis()
+            );
 
-            let read_time = start.elapsed().as_secs_f64()/(num_reads as f64);
+            let read_time = start.elapsed().as_secs_f64() / (num_reads as f64);
 
             let _ = writeln!(&mut stdout.lock(), "Performing rank retrieval test...");
 
@@ -1161,9 +1259,13 @@ pub fn execute_command(
                 num_ranks += 1;
             }
 
-            let _ = writeln!(&mut stdout.lock(), "Made {num_ranks} rank retrieval operations in {} ms.", start.elapsed().as_millis());
+            let _ = writeln!(
+                &mut stdout.lock(),
+                "Made {num_ranks} rank retrieval operations in {} ms.",
+                start.elapsed().as_millis()
+            );
 
-            let rank_time = start.elapsed().as_secs_f64()/(num_ranks as f64);
+            let rank_time = start.elapsed().as_secs_f64() / (num_ranks as f64);
 
             let _ = writeln!(&mut stdout.lock(), "Getting top 50 entries...");
             start = Instant::now();
@@ -1181,16 +1283,117 @@ pub fn execute_command(
 
             let bottom_time = start.elapsed().as_secs_f64();
 
-            let _ = writeln!(&mut stdout.lock(), "RESULTS:\n\
+            let _ = writeln!(&mut stdout.lock(), "Preparing to write to file...");
+            start = Instant::now();
+
+            let tree = cmd_arc
+                .boards
+                .lock()
+                .unwrap()
+                .get(&board_name)
+                .unwrap()
+                .get_tree_copy();
+
+            let write_start_time = start.elapsed().as_secs_f64();
+
+            let _ = writeln!(&mut stdout.lock(), "Writing to file...");
+            start = Instant::now();
+
+            let temp_path = cmd_arc.saves_path.join(format!("{board_name}_saving.test"));
+
+            match File::create(&temp_path) {
+                Ok(handle) => {
+                    let mut buf_writer = BufWriter::new(handle);
+
+                    if let Err(e) = bincode::encode_into_std_write(
+                        &tree,
+                        &mut buf_writer,
+                        bincode::config::standard(),
+                    ) {
+                        let _ = writeln!(
+                            &mut io::stderr().lock(),
+                            "Failed to serialize leaderboard:\n{e}"
+                        );
+                    }
+                }
+                Err(err) => {
+                    let _ = writeln!(
+                        &mut io::stderr().lock(),
+                        "Failed to open temp file to save board.\n{}",
+                        err
+                    );
+                }
+            };
+
+            let write_file_time = start.elapsed().as_secs_f64();
+
+            let _ = writeln!(&mut stdout.lock(), "Reading from file...");
+            start = Instant::now();
+
+            match File::open(temp_path.clone()) {
+                Err(e) => {
+                    let _ = writeln!(
+                        &mut io::stderr().lock(),
+                        "Failed to read file for leaderboard:\n{e}",
+                    );
+                }
+                Ok(save_file) => {
+                    let mut buf_reader = BufReader::new(save_file);
+
+                    match bincode::decode_from_std_read(
+                        &mut buf_reader,
+                        bincode::config::standard(),
+                    ) {
+                        Err(e) => {
+                            let _ = writeln!(
+                                &mut io::stderr().lock(),
+                                "Failed to parse file for leaderboard:\n{e}",
+                            );
+                        }
+                        Ok(tree) => {
+                            let t: crate::board::Tree<crate::board::Entry<i64, f64>> = tree;
+                            crate::board::Board::from_tree(t);
+                        }
+                    };
+                }
+            };
+
+            let read_file_time = start.elapsed().as_secs_f64();
+
+            let _ = writeln!(&mut stdout.lock(), "Cleaning up...");
+
+            if temp_path.exists() {
+                let _ = std::fs::remove_file(temp_path);
+            }
+
+            let mut binding = cmd_arc.boards.lock().unwrap();
+            let board = binding.get_mut(&interaction.user.board).unwrap();
+            board.clear();
+
+            let _ = drop(binding);
+
+            let _ = writeln!(
+                &mut stdout.lock(),
+                "\nRESULTS:\n\
             In a board with {size} entries...\n\
             Updating an user's points takes roughly {:.4} ms.\n\
             Retrieving the 25 entries before and after (total 51 entries) a user takes roughly {:.4} ms.\n\
             Retrieving the rank of a user takes roughly {:.4} ms.\n\
             Getting the top 50 entries takes roughly {:.4} ms.\n\
             Getting the bottom 50 entries takes roughly {:.4} ms.\n\
-            *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a bench mark or rough reference.
-            ", write_time*1000.0, read_time*1000.0, rank_time*1000.0, top_time*1000.0, bottom_time*1000.0);
-
+            When saving to file, all operations will stop for {:.4} seconds.\n\
+            Saving to file will take {:.4} seconds in total.\n\
+            Reading from file will take {:.4} seconds.\n\
+            *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a benchmark or rough reference. The read write operation tests should be completely accurate in terms of length, however.",
+                write_time * 1000.0,
+                read_time * 1000.0,
+                rank_time * 1000.0,
+                top_time * 1000.0,
+                bottom_time * 1000.0,
+                write_start_time,
+                write_start_time + write_file_time,
+                read_file_time
+            );
         }
         "help" => {
             let _ = writeln!(

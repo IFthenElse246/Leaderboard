@@ -17,7 +17,7 @@ pub struct Board<
 > {
     tree: Tree<Entry<K, V>>,
     map: HashMap<K, Entry<K, V>>,
-    size_cap: Option<usize>
+    size_cap: Option<usize>,
 }
 
 impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Default + ?Sized + Clone>
@@ -38,7 +38,10 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             return Ok(false);
         }
 
-        if let Some(cap) = self.size_cap && self.is_at_size_cap() && self.tree.index_of(&entry).0 >= cap {
+        if let Some(cap) = self.size_cap
+            && self.is_at_size_cap()
+            && self.tree.index_of(&entry).0 >= cap
+        {
             return Err("Too low rank to fall into the size cap.".to_string());
         }
 
@@ -62,8 +65,12 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         loop {
             let val = cursor.move_next();
             match val {
-                Some(v) => {ret.push(v.key.clone());},
-                None => {break;}
+                Some(v) => {
+                    ret.push(v.key.clone());
+                }
+                None => {
+                    break;
+                }
             }
         }
 
@@ -98,18 +105,18 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
     }
 
     pub fn get_size_cap(&self) -> Option<usize> {
-        return self.size_cap
+        return self.size_cap;
     }
 
     pub fn is_at_size_cap(&self) -> bool {
-        return self.size_cap.is_some() && self.size_cap.unwrap() <= self.get_size()
+        return self.size_cap.is_some() && self.size_cap.unwrap() <= self.get_size();
     }
 
     pub fn is_past_size_cap(&self) -> bool {
-        return self.size_cap.is_some() && self.size_cap.unwrap() < self.get_size()
+        return self.size_cap.is_some() && self.size_cap.unwrap() < self.get_size();
     }
 
-    pub fn update_entry(&mut self, id: K, points: V) -> Result<bool,String> {
+    pub fn update_entry(&mut self, id: K, points: V) -> Result<bool, String> {
         let old_entry_opt = self.map.get(&id);
         if let None = old_entry_opt {
             let new_entry = Entry {
@@ -119,7 +126,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             };
             return match self.add_entry(new_entry) {
                 Ok(_) => Ok(true),
-                Err(v) => Err(v)
+                Err(v) => Err(v),
             };
         }
         let old_entry = old_entry_opt.unwrap();
@@ -143,7 +150,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         return Some(self.tree.index_of(entry).0 + 1);
     }
 
-    pub fn at_rank(&self, rank: usize) -> Option<Entry<K,V>> {
+    pub fn at_rank(&self, rank: usize) -> Option<Entry<K, V>> {
         return self.tree.at_index(rank - 1).map(|v| v.clone());
     }
 
@@ -196,11 +203,16 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         Self {
             tree: Tree::new(),
             map: HashMap::new(),
-            size_cap: None
+            size_cap: None,
         }
     }
 
-    pub fn get_around(&self, id: &K, before: usize, after: usize) -> Option<Vec<(usize, Entry<K, V>)>> {
+    pub fn get_around(
+        &self,
+        id: &K,
+        before: usize,
+        after: usize,
+    ) -> Option<Vec<(usize, Entry<K, V>)>> {
         let entry = self.map.get(id)?;
         let mut ret = Vec::with_capacity(before + after + 1);
 
@@ -257,15 +269,15 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
     }
 
     pub fn get_range(&self, start_rank: usize, end_rank: usize) -> Vec<(usize, Entry<K, V>)> {
-        if end_rank < start_rank {return Vec::new();}
+        if end_rank < start_rank {
+            return Vec::new();
+        }
         let num = end_rank - start_rank + 1;
         let mut ret = Vec::with_capacity(num);
 
         let mut cursor = match self.tree.seek_index(start_rank - 1) {
             Some(v) => v,
-            None => {
-                return Vec::new()
-            }
+            None => return Vec::new(),
         };
         for _i in 0..num {
             if let Some(v) = cursor.get_value() {
@@ -321,7 +333,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         Self {
             tree: tree,
             map: map,
-            size_cap: None
+            size_cap: None,
         }
     }
 }

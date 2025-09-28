@@ -12,7 +12,7 @@ use crate::util;
 #[derive(Serialize, Deserialize)]
 pub struct ConfigBoard {
     pub keys: HashMap<String, ConfigUser>,
-    pub cap: Option<usize>
+    pub cap: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct AppState {
     pub port: usize,
     pub save_interval: u64,
     pub boards_file: Mutex<File>,
-    pub saves_path: PathBuf
+    pub saves_path: PathBuf,
 }
 
 impl AppState {
@@ -101,19 +101,21 @@ impl AppState {
                 };
                 let mut buf_reader = BufReader::new(save_file);
 
-                let tree =
-                    match bincode::decode_from_std_read(&mut buf_reader, bincode::config::standard()) {
-                        Err(err) => {
-                            panic!(
-                                "Failed to parse file ({}) for leaderboard {name}\n{err}",
-                                match save_path.to_str() {
-                                    Some(path) => path.to_string(),
-                                    None => format!("/saves/{name}.board"),
-                                }
-                            );
-                        }
-                        Ok(tree) => tree,
-                    };
+                let tree = match bincode::decode_from_std_read(
+                    &mut buf_reader,
+                    bincode::config::standard(),
+                ) {
+                    Err(err) => {
+                        panic!(
+                            "Failed to parse file ({}) for leaderboard {name}\n{err}",
+                            match save_path.to_str() {
+                                Some(path) => path.to_string(),
+                                None => format!("/saves/{name}.board"),
+                            }
+                        );
+                    }
+                    Ok(tree) => tree,
+                };
 
                 board = Board::from_tree(tree);
 
@@ -122,7 +124,10 @@ impl AppState {
                 }
             } else {
                 board = Board::new();
-                let _ = writeln!(&mut io::stdout().lock(), "Failed to find .board file for board {name}. Using empty board.");
+                let _ = writeln!(
+                    &mut io::stdout().lock(),
+                    "Failed to find .board file for board {name}. Using empty board."
+                );
             }
 
             if let Some(cap) = json_board.cap {
@@ -130,7 +135,7 @@ impl AppState {
             } else {
                 board.remove_size_cap();
             }
-            
+
             boards.insert(name.clone(), board);
             for (key, user) in json_board.keys {
                 keys.insert(
@@ -149,7 +154,7 @@ impl AppState {
             port: json.port,
             save_interval: json.save_interval,
             boards_file: Mutex::new(boards_file),
-            saves_path: saves_path.clone()
+            saves_path: saves_path.clone(),
         }
     }
 
@@ -163,12 +168,12 @@ impl AppState {
             let actual_board = binding.get(&board_name);
             let cap = match actual_board {
                 None => None,
-                Some(v) => v.get_size_cap()
+                Some(v) => v.get_size_cap(),
             };
             if !json.contains_key(&board_name) {
                 let board = ConfigBoard {
                     keys: HashMap::new(),
-                    cap: cap
+                    cap: cap,
                 };
                 json.insert(board_name.clone(), board);
             }
@@ -184,7 +189,7 @@ impl AppState {
             if !json.contains_key(board_name) {
                 let board = ConfigBoard {
                     keys: HashMap::new(),
-                    cap: board.get_size_cap()
+                    cap: board.get_size_cap(),
                 };
                 json.insert(board_name.clone(), board);
             }
@@ -251,7 +256,9 @@ impl AppState {
 
         let board = match boards.get_mut(board) {
             Some(v) => v,
-            None => {return false;}
+            None => {
+                return false;
+            }
         };
         board.set_size_cap(cap);
         let _ = drop(boards);
@@ -264,7 +271,9 @@ impl AppState {
 
         let board = match boards.get_mut(board) {
             Some(v) => v,
-            None => {return false;}
+            None => {
+                return false;
+            }
         };
         board.remove_size_cap();
         let _ = drop(boards);
@@ -288,7 +297,7 @@ impl AppState {
         if save_path.exists() {
             let _ = std::fs::remove_file(save_path);
         }
-        
+
         self.write_boards_json();
         return true;
     }

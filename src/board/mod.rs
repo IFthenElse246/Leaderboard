@@ -4,7 +4,7 @@ mod tree;
 
 pub use board::Board;
 pub use entry::Entry;
-use tree::Tree;
+pub use tree::Tree;
 
 // pub struct Board<T: PartialOrd + Serialize + for<'a> Deserialize<'a> = f64> {
 //     tree: Tree,
