@@ -1,6 +1,7 @@
 mod board;
 mod entry;
 mod tree;
+mod test;
 
 pub use board::Board;
 pub use entry::Entry;
