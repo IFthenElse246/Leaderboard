@@ -14,13 +14,13 @@ fn test_massive() {
     let size = 100000;
     let usize_size: usize = 100000;
 
+    println!("Capping entries...");
+    board.set_size_cap(usize_size);
+
     println!("Populating with dummy entries...");
     for i in 0..size {
         let _ = board.update_entry(i, i as f64);
     }
-
-    println!("Capping entries...");
-    board.set_size_cap(usize_size);
 
     println!("Performing update test...");
     let mut num_writes = 0;

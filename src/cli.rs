@@ -10,7 +10,7 @@ use rand::distr::{Distribution, Uniform};
 
 use crate::{
     app_state::AppState,
-    backend::{self, Interaction, User},
+    backend::{self, Interaction, User}, board::Board,
 };
 
 fn create_interaction<'a>(
@@ -1163,6 +1163,14 @@ pub fn execute_command(
                 }
             }
 
+            let _ = drop(binding);
+
+            let _ = writeln!(&mut stdout.lock(), "Capping entries...");
+            cmd_arc.set_board_cap(&board_name, usize_size);
+
+            let mut binding = interaction.state.boards.lock().unwrap();
+            let board = binding.get_mut(&interaction.user.board).unwrap();
+
             let _ = writeln!(&mut stdout.lock(), "Populating with dummy entries...");
             for i in 0..size {
                 let _ = board.update_entry(i, i as f64);
@@ -1170,8 +1178,7 @@ pub fn execute_command(
 
             let _ = drop(binding);
 
-            let _ = writeln!(&mut stdout.lock(), "Capping entries...");
-            cmd_arc.set_board_cap(&board_name, usize_size);
+            
 
             let _ = writeln!(&mut stdout.lock(), "Performing update test...");
             let mut start = Instant::now();
@@ -1330,12 +1337,15 @@ pub fn execute_command(
             let _ = writeln!(&mut stdout.lock(), "Reading from file...");
             start = Instant::now();
 
+            let board;
+
             match File::open(temp_path.clone()) {
                 Err(e) => {
                     let _ = writeln!(
                         &mut io::stderr().lock(),
                         "Failed to read file for leaderboard:\n{e}",
                     );
+                    board = Board::new();
                 }
                 Ok(save_file) => {
                     let mut buf_reader = BufReader::new(save_file);
@@ -1349,10 +1359,11 @@ pub fn execute_command(
                                 &mut io::stderr().lock(),
                                 "Failed to parse file for leaderboard:\n{e}",
                             );
+                            board = Board::new();
                         }
                         Ok(tree) => {
                             let t: crate::board::Tree<crate::board::Entry<i64, f64>> = tree;
-                            crate::board::Board::from_tree(t);
+                            board = crate::board::Board::from_tree(t);
                         }
                     };
                 }
@@ -1361,6 +1372,8 @@ pub fn execute_command(
             let read_file_time = start.elapsed().as_secs_f64();
 
             let _ = writeln!(&mut stdout.lock(), "Cleaning up...");
+
+            let _ = drop(board);
 
             if temp_path.exists() {
                 let _ = std::fs::remove_file(temp_path);
