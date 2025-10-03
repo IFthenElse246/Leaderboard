@@ -1,3 +1,7 @@
+use bincode::de::Decoder;
+use bincode::Decode;
+
+use super::diff_map::{DiffMap, SnapshotBorrow};
 use super::Entry;
 use super::Tree;
 use std::collections::HashMap;
@@ -16,19 +20,27 @@ pub struct Board<
     V: PartialOrd + Default + ?Sized + Clone = f64,
 > {
     tree: Tree<Entry<K, V>>,
-    map: HashMap<K, Entry<K, V>>,
+    map: DiffMap<K, Entry<K, V>>,
     size_cap: Option<usize>,
 }
 
 impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Default + ?Sized + Clone>
     Board<K, V>
 {
-    pub fn get_entry(&self, id: &K) -> Option<&Entry<K, V>> {
+    pub fn get_entry(&self, id: &K) -> Option<Entry<K, V>> {
         return self.map.get(id);
     }
 
     pub fn get_tree_copy(&self) -> Tree<Entry<K, V>> {
         self.tree.clone()
+    }
+
+    pub fn get_map_snapshot(&self) -> SnapshotBorrow<K, Entry<K, V>> {
+        self.map.snapshot_borrow()
+    }
+
+    pub fn is_map_snapshotted(&self) -> bool {
+        self.map.is_borrowed()
     }
 
     pub fn add_entry(&mut self, entry: Entry<K, V>) -> Result<bool, String> {
@@ -140,14 +152,14 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             timestamp: current_time(),
         };
 
-        self.tree.replace(old_entry, new_entry.clone());
+        self.tree.replace(&old_entry, new_entry.clone());
         self.map.insert(id, new_entry);
         Ok(true)
     }
 
     pub fn get_rank(&self, id: &K) -> Option<usize> {
         let entry = self.map.get(id)?;
-        return Some(self.tree.index_of(entry).0 + 1);
+        return Some(self.tree.index_of(&entry).0 + 1);
     }
 
     pub fn at_rank(&self, rank: usize) -> Option<Entry<K, V>> {
@@ -202,7 +214,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
     pub fn new() -> Self {
         Self {
             tree: Tree::new(),
-            map: HashMap::new(),
+            map: DiffMap::new(),
             size_cap: None,
         }
     }
@@ -216,7 +228,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         let entry = self.map.get(id)?;
         let mut ret = Vec::with_capacity(before + after + 1);
 
-        let mut cursor = self.tree.seek_val(entry)?;
+        let mut cursor = self.tree.seek_val(&entry)?;
         let mut cursor2 = cursor.clone();
 
         for _i in 0..before {
@@ -252,7 +264,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         let entry = self.map.get(id)?;
         let mut ret = Vec::with_capacity(count);
 
-        let mut cursor = self.tree.seek_val(entry).unwrap();
+        let mut cursor = self.tree.seek_val(&entry).unwrap();
         for _i in 0..count {
             cursor.move_prev();
             if let Some(v) = cursor.get_value() {
@@ -298,7 +310,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         let entry = self.map.get(id)?;
         let mut ret = Vec::with_capacity(count);
 
-        let mut cursor = self.tree.seek_val(entry).unwrap();
+        let mut cursor = self.tree.seek_val(&entry).unwrap();
         for _i in 0..count {
             cursor.move_next();
             if let Some(v) = cursor.get_value() {
@@ -315,7 +327,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
     }
 
     pub fn from_tree(tree: Tree<Entry<K, V>>) -> Self {
-        let mut map = HashMap::with_capacity(tree.len());
+        let mut map = DiffMap::with_capacity(tree.len());
 
         let mut cursor = tree.cursor();
         cursor.move_next();
@@ -336,6 +348,20 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             size_cap: None,
         }
     }
+
+    pub fn from_map(map: HashMap<K, Entry<K, V>>) -> Self {
+        let mut tree = Tree::new();
+
+        for (_, elem) in map.iter() {
+            tree.insert(elem.clone());
+        }
+
+        Self {
+            tree: tree,
+            map: DiffMap::from_map(map),
+            size_cap: None
+        }
+    }
 }
 
 unsafe impl<
@@ -349,4 +375,18 @@ unsafe impl<
     V: PartialOrd + Default + ?Sized + Clone + Sync,
 > Sync for Board<K, V>
 {
+}
+
+impl<K, V, Context> Decode<Context> for Board<K, V>
+where K: PartialOrd + Eq + Hash + Sized + Default + Clone + Decode<Context>,
+    V: PartialOrd + Default + ?Sized + Clone + Decode<Context> {
+    fn decode<D: bincode::de::Decoder>(decoder: &mut D) -> Result<Self, bincode::error::DecodeError>
+    where
+        K: Decode<<D as Decoder>::Context>,
+        V: Decode<<D as Decoder>::Context>
+    {
+        let map = bincode::Decode::decode(decoder)?;
+
+        Ok(Board::from_map(map))
+    }
 }

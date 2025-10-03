@@ -1293,13 +1293,13 @@ pub fn execute_command(
             let _ = writeln!(&mut stdout.lock(), "Preparing to write to file...");
             start = Instant::now();
 
-            let tree = cmd_arc
+            let snapshot = cmd_arc
                 .boards
                 .lock()
                 .unwrap()
                 .get(&board_name)
                 .unwrap()
-                .get_tree_copy();
+                .get_map_snapshot();
 
             let write_start_time = start.elapsed().as_secs_f64();
 
@@ -1313,7 +1313,7 @@ pub fn execute_command(
                     let mut buf_writer = BufWriter::new(handle);
 
                     if let Err(e) = bincode::encode_into_std_write(
-                        &tree,
+                        &snapshot,
                         &mut buf_writer,
                         bincode::config::standard(),
                     ) {
@@ -1337,7 +1337,7 @@ pub fn execute_command(
             let _ = writeln!(&mut stdout.lock(), "Reading from file...");
             start = Instant::now();
 
-            let board;
+            let board: Board<i64, f64>;
 
             match File::open(temp_path.clone()) {
                 Err(e) => {
@@ -1350,7 +1350,7 @@ pub fn execute_command(
                 Ok(save_file) => {
                     let mut buf_reader = BufReader::new(save_file);
 
-                    match bincode::decode_from_std_read(
+                    board = match bincode::decode_from_std_read(
                         &mut buf_reader,
                         bincode::config::standard(),
                     ) {
@@ -1359,12 +1359,9 @@ pub fn execute_command(
                                 &mut io::stderr().lock(),
                                 "Failed to parse file for leaderboard:\n{e}",
                             );
-                            board = Board::new();
+                            Board::new()
                         }
-                        Ok(tree) => {
-                            let t: crate::board::Tree<crate::board::Entry<i64, f64>> = tree;
-                            board = crate::board::Board::from_tree(t);
-                        }
+                        Ok(b) => b
                     };
                 }
             };

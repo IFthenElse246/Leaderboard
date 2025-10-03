@@ -77,7 +77,7 @@ impl AppState {
             let save_path = saves_path.join(format!("{name}.board"));
             let alt_path = saves_path.join(format!("{name}_saving.part"));
 
-            let mut board;
+            let mut board: Board<i64, f64>;
 
             if !save_path.exists() && alt_path.exists() {
                 let result = std::fs::rename(&alt_path, &save_path);
@@ -101,7 +101,7 @@ impl AppState {
                 };
                 let mut buf_reader = BufReader::new(save_file);
 
-                let tree = match bincode::decode_from_std_read(
+                board = match bincode::decode_from_std_read(
                     &mut buf_reader,
                     bincode::config::standard(),
                 ) {
@@ -114,10 +114,8 @@ impl AppState {
                             }
                         );
                     }
-                    Ok(tree) => tree,
+                    Ok(board) => board,
                 };
-
-                board = Board::from_tree(tree);
 
                 if alt_path.exists() {
                     let _ = std::fs::remove_file(alt_path);
@@ -228,7 +226,7 @@ impl AppState {
             };
             let mut buf_reader = BufReader::new(save_file);
 
-            let tree =
+            board =
                 match bincode::decode_from_std_read(&mut buf_reader, bincode::config::standard()) {
                     Err(err) => {
                         panic!(
@@ -239,9 +237,8 @@ impl AppState {
                             }
                         );
                     }
-                    Ok(tree) => tree,
+                    Ok(board) => board,
                 };
-            board = Board::from_tree(tree);
         } else {
             board = Board::new()
         }

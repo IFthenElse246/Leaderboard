@@ -41,7 +41,7 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
 
             let temp_path = saves_path.join(format!("{name}_saving.part"));
 
-            let new_tree = board.get_tree_copy();
+            let snapshot = board.get_map_snapshot();
 
             drop(lock);
 
@@ -60,7 +60,7 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
             let mut buf_writer = BufWriter::new(handle);
 
             match bincode::encode_into_std_write(
-                &new_tree,
+                &snapshot,
                 &mut buf_writer,
                 bincode::config::standard(),
             ) {

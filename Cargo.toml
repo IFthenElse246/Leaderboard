@@ -5,9 +5,8 @@ edition = "2024"
 
 [dependencies]
 bincode = "2.0.1"
-ciborium = "0.2.2"
 fs2 = "0.4.3"
-indexset = { version = "0.12.2", features = ["serde"] }
+indicatif = "0.18.0"
 memmap2 = "0.9.5"
 rand = "0.9.2"
 rocket = "0.5.1"

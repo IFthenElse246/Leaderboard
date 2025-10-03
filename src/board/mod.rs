@@ -1,6 +1,9 @@
 mod board;
 mod entry;
 mod tree;
+mod diff_map;
+
+#[allow(unused_imports)]
 mod test;
 
 pub use board::Board;
