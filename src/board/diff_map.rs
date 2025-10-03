@@ -1,39 +1,51 @@
-use std::{collections::HashMap, hash::Hash, mem, sync::{Arc, Mutex, RwLock, RwLockReadGuard}};
+use std::{
+    collections::HashMap,
+    hash::Hash,
+    sync::{Arc, Mutex, RwLock, RwLockReadGuard},
+};
 
 use bincode::Encode;
 
 pub struct DiffMap<K, V>
-where K: Eq + Hash + Clone,
-    V: Clone {
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
     inner: Arc<Mutex<Inner<K, V>>>,
     map: Arc<RwLock<HashMap<K, V>>>,
 }
 
 struct Inner<K, V>
-where K: Eq + Hash + Clone,
-    V: Clone {
-        num_borrows: usize,
-        cleared: bool,
-        diff: HashMap<K, Option<V>>
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
+    num_borrows: usize,
+    cleared: bool,
+    diff: HashMap<K, Option<V>>,
 }
 
 pub struct SnapshotBorrow<K, V>
-where K: Eq + Hash + Clone,
-    V: Clone {
-    diff_map: DiffMap<K, V>
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
+    diff_map: DiffMap<K, V>,
 }
 
-impl<K, V> DiffMap<K, V> 
-where K: Eq + Hash + Clone,
-    V: Clone {
+impl<K, V> DiffMap<K, V>
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
     pub fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 num_borrows: 0,
                 cleared: false,
-                diff: HashMap::new()
+                diff: HashMap::new(),
             })),
-            map: Arc::new(RwLock::new(HashMap::new()))
+            map: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -42,9 +54,9 @@ where K: Eq + Hash + Clone,
             inner: Arc::new(Mutex::new(Inner {
                 num_borrows: 0,
                 cleared: false,
-                diff: HashMap::new()
+                diff: HashMap::new(),
             })),
-            map: Arc::new(RwLock::new(map))
+            map: Arc::new(RwLock::new(map)),
         }
     }
 
@@ -53,15 +65,15 @@ where K: Eq + Hash + Clone,
             inner: Arc::new(Mutex::new(Inner {
                 num_borrows: 0,
                 cleared: false,
-                diff: HashMap::new()
+                diff: HashMap::new(),
             })),
-            map: Arc::new(RwLock::new(HashMap::with_capacity(capacity)))
+            map: Arc::new(RwLock::new(HashMap::with_capacity(capacity))),
         }
     }
 
     pub fn shrink_to_fit(&mut self) {
         let inner = self.inner.lock().unwrap();
-        
+
         if inner.num_borrows == 0 {
             self.map.write().unwrap().shrink_to_fit();
         }
@@ -69,7 +81,7 @@ where K: Eq + Hash + Clone,
 
     pub fn get<'a>(&'a self, key: &K) -> Option<V> {
         let inner = self.inner.lock().unwrap();
-        
+
         let ret = match inner.diff.get(key) {
             None => {
                 if inner.cleared {
@@ -77,7 +89,7 @@ where K: Eq + Hash + Clone,
                 } else {
                     self.map.read().unwrap().get(key).cloned()
                 }
-            },
+            }
             Some(v) => {
                 return v.as_ref().cloned();
             }
@@ -101,8 +113,8 @@ where K: Eq + Hash + Clone,
                     } else {
                         self.map.read().unwrap().get(&key).cloned()
                     }
-                },
-                Some(v) => v
+                }
+                Some(v) => v,
             }
         };
 
@@ -125,13 +137,13 @@ where K: Eq + Hash + Clone,
                         } else {
                             Some(base_val.clone())
                         }
-                    },
-                    Some(v) => v
+                    }
+                    Some(v) => v,
                 }
             } else {
                 match inner.diff.remove(key) {
                     None => None,
-                    Some(v) => v
+                    Some(v) => v,
                 }
             }
         };
@@ -145,9 +157,7 @@ where K: Eq + Hash + Clone,
         let inner = self.inner.lock().unwrap();
 
         let ret = match inner.diff.get(key) {
-            None => {
-                !inner.cleared && self.map.read().unwrap().contains_key(key)
-            },
+            None => !inner.cleared && self.map.read().unwrap().contains_key(key),
             Some(v) => {
                 return v.is_some();
             }
@@ -178,8 +188,8 @@ where K: Eq + Hash + Clone,
         let ret = SnapshotBorrow {
             diff_map: DiffMap {
                 inner: self.inner.clone(),
-                map: self.map.clone()
-            }
+                map: self.map.clone(),
+            },
         };
 
         let _ = drop(inner);
@@ -192,51 +202,82 @@ where K: Eq + Hash + Clone,
 }
 
 impl<'a, K, V> Drop for SnapshotBorrow<K, V>
-where K: Eq + Hash + Clone,
-    V: Clone {
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
     fn drop(&mut self) {
         let mut inner = self.diff_map.inner.lock().unwrap();
-        inner.num_borrows -= 1;
-
-        if inner.num_borrows == 0 {
+        
+        if inner.num_borrows == 1 {
             let mut map = self.diff_map.map.write().unwrap();
 
             if inner.cleared {
                 map.clear();
+                inner.cleared = false;
             }
 
-            let diff = mem::replace(&mut inner.diff, HashMap::new()).into_iter();
-            for elem in diff {
-                match elem.1 {
-                    None => {
-                        map.remove(&elem.0);
-                    },
-                    Some(v) => {
-                        map.insert(elem.0, v);
+            let _ = drop(map);
+            let _ = drop(inner);
+            
+            inner = self.diff_map.inner.lock().unwrap();
+
+            if inner.num_borrows == 1 {
+                let mut map = self.diff_map.map.write().unwrap();
+
+                while !inner.diff.is_empty() {
+                    let key = inner.diff.iter().next().unwrap().0.clone();
+
+                    let v = inner.diff.remove(&key).unwrap();
+
+                    match v {
+                        None => {
+                            map.remove(&key);
+                        }
+                        Some(v) => {
+                            map.insert(key, v);
+                        }
                     }
+
+                    let _ = drop(map);
+                    let _ = drop(inner);
+
+                    inner = self.diff_map.inner.lock().unwrap();
+
+                    if inner.num_borrows != 1 { break; }
+
+                    map = self.diff_map.map.write().unwrap();
                 }
             }
         }
+
+        inner.num_borrows -= 1;
+
+        let _ = drop(inner);
     }
 }
 
 impl<K, V> SnapshotBorrow<K, V>
-where K: Eq + Hash + Clone,
-    V: Clone {
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
     fn get_lock<'b>(&'b self) -> RwLockReadGuard<'b, HashMap<K, V>> {
         self.diff_map.map.read().unwrap()
     }
 }
 
 impl<K, V> Encode for SnapshotBorrow<K, V>
-where K: Eq + Hash + Clone + Encode,
-    V: Clone + Encode {
+where
+    K: Eq + Hash + Clone + Encode,
+    V: Clone + Encode,
+{
     fn encode<E: bincode::enc::Encoder>(
         &self,
         encoder: &mut E,
     ) -> Result<(), bincode::error::EncodeError> {
         let lock = self.get_lock();
-        
+
         bincode::Encode::encode(&*lock, encoder)?;
 
         Ok(())

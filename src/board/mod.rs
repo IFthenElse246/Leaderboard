@@ -1,7 +1,7 @@
 mod board;
+mod diff_map;
 mod entry;
 mod tree;
-mod diff_map;
 
 #[allow(unused_imports)]
 mod test;

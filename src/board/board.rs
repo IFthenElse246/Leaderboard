@@ -1,9 +1,9 @@
-use bincode::de::Decoder;
 use bincode::Decode;
+use bincode::de::Decoder;
 
-use super::diff_map::{DiffMap, SnapshotBorrow};
 use super::Entry;
 use super::Tree;
+use super::diff_map::{DiffMap, SnapshotBorrow};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -359,7 +359,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         Self {
             tree: tree,
             map: DiffMap::from_map(map),
-            size_cap: None
+            size_cap: None,
         }
     }
 }
@@ -378,12 +378,14 @@ unsafe impl<
 }
 
 impl<K, V, Context> Decode<Context> for Board<K, V>
-where K: PartialOrd + Eq + Hash + Sized + Default + Clone + Decode<Context>,
-    V: PartialOrd + Default + ?Sized + Clone + Decode<Context> {
+where
+    K: PartialOrd + Eq + Hash + Sized + Default + Clone + Decode<Context>,
+    V: PartialOrd + Default + ?Sized + Clone + Decode<Context>,
+{
     fn decode<D: bincode::de::Decoder>(decoder: &mut D) -> Result<Self, bincode::error::DecodeError>
     where
         K: Decode<<D as Decoder>::Context>,
-        V: Decode<<D as Decoder>::Context>
+        V: Decode<<D as Decoder>::Context>,
     {
         let map = bincode::Decode::decode(decoder)?;
 

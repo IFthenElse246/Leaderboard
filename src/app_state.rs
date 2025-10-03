@@ -159,11 +159,11 @@ impl AppState {
     fn write_boards_json(&self) {
         let mut json: HashMap<String, ConfigBoard> = HashMap::new();
         let users = self.api_keys.lock().unwrap();
+        let boards = self.boards.lock().unwrap();
 
         for (k, user) in users.iter() {
             let board_name = user.board.clone();
-            let binding = self.boards.lock().unwrap();
-            let actual_board = binding.get(&board_name);
+            let actual_board = boards.get(&board_name);
             let cap = match actual_board {
                 None => None,
                 Some(v) => v.get_size_cap(),
@@ -182,7 +182,6 @@ impl AppState {
                 .insert(k.to_string(), ConfigUser { write: user.write });
         }
 
-        let boards = self.boards.lock().unwrap();
         for (board_name, board) in boards.iter() {
             if !json.contains_key(board_name) {
                 let board = ConfigBoard {
@@ -192,6 +191,8 @@ impl AppState {
                 json.insert(board_name.clone(), board);
             }
         }
+
+        let _ = drop(boards);
 
         let mut file = self
             .boards_file
@@ -243,7 +244,14 @@ impl AppState {
             board = Board::new()
         }
 
-        self.boards.lock().unwrap().insert(name, board);
+        let mut boards = self.boards.lock().unwrap();
+        if boards.contains_key(&name) {
+            return false;
+        }
+        boards.insert(name, board);
+
+        let _ = drop(boards);
+
         self.write_boards_json();
         return true;
     }
@@ -279,16 +287,19 @@ impl AppState {
     }
 
     pub fn delete_board(&self, name: &String) -> bool {
+        let mut users = self.api_keys.lock().unwrap();
+        users.retain(|_k, usr| -> bool { usr.board != *name });
+        let _ = drop(users);
+
         let mut boards = self.boards.lock().unwrap();
         if !boards.contains_key(name) {
             return false;
         }
-        boards.remove(name);
 
-        let mut users = self.api_keys.lock().unwrap();
-        users.retain(|_k, usr| -> bool { usr.board != *name });
+        let v = boards.remove(name);
+
         let _ = drop(boards);
-        let _ = drop(users);
+        let _ = drop(v);
 
         let save_path = self.saves_path.join(format!("{name}.board"));
         if save_path.exists() {

@@ -34,16 +34,16 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
     drop(queue_lock);
 
     for name in queue.iter() {
-        let lock = state_arc.boards.lock().unwrap();
+        let boards = state_arc.boards.lock().unwrap();
 
-        if let Some(board) = lock.get(name) {
+        if let Some(board) = boards.get(name) {
             let _ = writeln!(&mut stdout.lock(), "Saving {name}...");
 
             let temp_path = saves_path.join(format!("{name}_saving.part"));
 
             let snapshot = board.get_map_snapshot();
 
-            drop(lock);
+            let _ = drop(boards);
 
             let handle = match File::create(&temp_path) {
                 Ok(v) => v,

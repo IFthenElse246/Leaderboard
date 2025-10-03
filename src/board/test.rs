@@ -1,5 +1,5 @@
-use std::{env, time::Instant};
 use rand::distr::{Distribution, Uniform};
+use std::{env, time::Instant};
 
 use crate::board::Board;
 
@@ -40,9 +40,7 @@ fn test_massive() {
         num_writes += 1;
     }
 
-    println!(
-        "Made {num_writes} update operations.",
-    );
+    println!("Made {num_writes} update operations.",);
 
     println!("Preparing...");
 
@@ -64,9 +62,7 @@ fn test_massive() {
         num_reads += 1;
     }
 
-    println!(
-        "Made {num_reads} retrieval around operations."
-    );
+    println!("Made {num_reads} retrieval around operations.");
 
     println!("Performing rank retrieval test...");
 
@@ -84,18 +80,14 @@ fn test_massive() {
         num_ranks += 1;
     }
 
-    println!(
-        "Made {num_ranks} rank retrieval operations."
-    );
+    println!("Made {num_ranks} rank retrieval operations.");
 
     println!("Getting top 50 entries...");
     board.get_top(50);
 
-
     println!("Getting bottom 50 entries...");
 
     board.get_bottom(50);
-
 
     println!("Preparing to write to file...");
 

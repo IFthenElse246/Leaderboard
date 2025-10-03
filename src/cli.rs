@@ -10,7 +10,8 @@ use rand::distr::{Distribution, Uniform};
 
 use crate::{
     app_state::AppState,
-    backend::{self, Interaction, User}, board::Board,
+    backend::{self, Interaction, User},
+    board::Board,
 };
 
 fn create_interaction<'a>(
@@ -1178,7 +1179,13 @@ pub fn execute_command(
 
             let _ = drop(binding);
 
-            
+            let snapshot = cmd_arc
+                .boards
+                .lock()
+                .unwrap()
+                .get(&board_name)
+                .unwrap()
+                .get_map_snapshot(); // just so things are slowed down
 
             let _ = writeln!(&mut stdout.lock(), "Performing update test...");
             let mut start = Instant::now();
@@ -1293,6 +1300,8 @@ pub fn execute_command(
             let _ = writeln!(&mut stdout.lock(), "Preparing to write to file...");
             start = Instant::now();
 
+            let _ = drop(snapshot);
+
             let snapshot = cmd_arc
                 .boards
                 .lock()
@@ -1361,7 +1370,7 @@ pub fn execute_command(
                             );
                             Board::new()
                         }
-                        Ok(b) => b
+                        Ok(b) => b,
                     };
                 }
             };
@@ -1391,7 +1400,7 @@ pub fn execute_command(
             Retrieving the rank of a user takes roughly {:.4} ms.\n\
             Getting the top 50 entries takes roughly {:.4} ms.\n\
             Getting the bottom 50 entries takes roughly {:.4} ms.\n\
-            When saving to file, all operations will stop for {:.4} seconds.\n\
+            After saving to file, everything will slow for ROUGHLY {:.4} seconds.\n\
             Saving to file will take {:.4} seconds in total.\n\
             Reading from file will take {:.4} seconds.\n\
             *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a benchmark or rough reference. The read write operation tests should be completely accurate in terms of length, however.",
@@ -1400,8 +1409,8 @@ pub fn execute_command(
                 rank_time * 1000.0,
                 top_time * 1000.0,
                 bottom_time * 1000.0,
-                write_start_time,
-                write_start_time + write_file_time,
+                write_start_time/(write_time*(num_writes as f64))*write_file_time,
+                write_file_time,
                 read_file_time
             );
         }
