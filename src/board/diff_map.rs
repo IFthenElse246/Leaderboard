@@ -208,7 +208,7 @@ where
 {
     fn drop(&mut self) {
         let mut inner = self.diff_map.inner.lock().unwrap();
-        
+
         if inner.num_borrows == 1 {
             let mut map = self.diff_map.map.write().unwrap();
 
@@ -219,7 +219,7 @@ where
 
             let _ = drop(map);
             let _ = drop(inner);
-            
+
             inner = self.diff_map.inner.lock().unwrap();
 
             if inner.num_borrows == 1 {
@@ -244,7 +244,9 @@ where
 
                     inner = self.diff_map.inner.lock().unwrap();
 
-                    if inner.num_borrows != 1 { break; }
+                    if inner.num_borrows != 1 {
+                        break;
+                    }
 
                     map = self.diff_map.map.write().unwrap();
                 }
@@ -279,6 +281,21 @@ where
         let lock = self.get_lock();
 
         bincode::Encode::encode(&*lock, encoder)?;
+
+        Ok(())
+    }
+}
+
+impl<K, V> Encode for DiffMap<K, V>
+where
+    K: Eq + Hash + Clone + Encode,
+    V: Clone + Encode,
+{
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        bincode::Encode::encode(&self.map, encoder)?;
 
         Ok(())
     }

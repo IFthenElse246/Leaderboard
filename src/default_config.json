@@ -1,4 +1,5 @@
 {
     "port": 3895,
-    "save_interval": 600
+    "save_interval": 600,
+    "lock_save": false
 }

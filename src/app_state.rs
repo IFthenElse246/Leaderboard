@@ -1,3 +1,4 @@
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -6,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::backend::User;
-use crate::board::Board;
+use crate::board::{Board, Entry};
 use crate::util;
 
 #[derive(Serialize, Deserialize)]
@@ -24,6 +25,7 @@ pub struct ConfigUser {
 pub struct Config {
     pub port: usize,
     pub save_interval: u64,
+    pub lock_save: Option<bool>,
 }
 
 pub struct AppState {
@@ -31,6 +33,7 @@ pub struct AppState {
     pub api_keys: Mutex<HashMap<String, User>>,
     pub port: usize,
     pub save_interval: u64,
+    pub lock_save: bool,
     pub boards_file: Mutex<File>,
     pub saves_path: PathBuf,
 }
@@ -99,9 +102,26 @@ impl AppState {
                     }
                     Ok(v) => v,
                 };
+
+                let mut bar = None;
+
+                if let Ok(style) =
+                    ProgressStyle::default_spinner().template("{spinner:.green} {msg}")
+                {
+                    let new_bar = ProgressBar::new_spinner();
+                    new_bar.set_style(style);
+                    new_bar.set_message(format!("Preliminary read from {name}.board..."));
+                    bar = Some(new_bar);
+                } else {
+                    let _ = writeln!(
+                        &mut io::stdout().lock(),
+                        "Preliminary read from {name}.board..."
+                    );
+                }
+
                 let mut buf_reader = BufReader::new(save_file);
 
-                board = match bincode::decode_from_std_read(
+                let map: HashMap<i64, Entry<i64, f64>> = match bincode::decode_from_std_read(
                     &mut buf_reader,
                     bincode::config::standard(),
                 ) {
@@ -114,8 +134,32 @@ impl AppState {
                             }
                         );
                     }
-                    Ok(board) => board,
+                    Ok(m) => m,
                 };
+
+                if let Some(b) = bar {
+                    b.finish_with_message(format!("Read from {name}.board"));
+                }
+
+                bar = None;
+                if let Ok(style) = ProgressStyle::default_bar()
+                    .template("{spinner:.green} {msg}\n[{wide_bar:.cyan/blue}] {pos}/{len} ({eta})")
+                {
+                    let new_bar = ProgressBar::new(map.len() as u64);
+                    new_bar.set_style(style);
+                    new_bar.set_message(format!("Constructing board \"{name}\"..."));
+                    bar = Some(new_bar);
+                }
+
+                if let Some(b) = bar {
+                    board = Board::from_map_prog(map, |amount| {
+                        b.inc(amount as u64);
+                    });
+
+                    b.finish_with_message(format!("Constructed tree \"{name}\"."));
+                } else {
+                    board = Board::from_map(map);
+                }
 
                 if alt_path.exists() {
                     let _ = std::fs::remove_file(alt_path);
@@ -150,6 +194,11 @@ impl AppState {
             boards: Mutex::new(boards),
             api_keys: Mutex::new(keys),
             port: json.port,
+            lock_save: if let Some(v) = json.lock_save {
+                v
+            } else {
+                false
+            },
             save_interval: json.save_interval,
             boards_file: Mutex::new(boards_file),
             saves_path: saves_path.clone(),

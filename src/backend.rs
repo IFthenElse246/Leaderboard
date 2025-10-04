@@ -41,29 +41,57 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
 
             let temp_path = saves_path.join(format!("{name}_saving.part"));
 
-            let snapshot = board.get_map_snapshot();
+            let result;
 
-            let _ = drop(boards);
+            if state_arc.lock_save {
+                let handle = match File::create(&temp_path) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        let _ = writeln!(
+                            &mut io::stderr().lock(),
+                            "Failed to open temp file to save leaderboard backup.\n{}",
+                            err
+                        );
+                        break;
+                    }
+                };
 
-            let handle = match File::create(&temp_path) {
-                Ok(v) => v,
-                Err(err) => {
-                    let _ = writeln!(
-                        &mut io::stderr().lock(),
-                        "Failed to open temp file to save leaderboard backup.\n{}",
-                        err
-                    );
-                    break;
-                }
-            };
+                let mut buf_writer = BufWriter::new(handle);
 
-            let mut buf_writer = BufWriter::new(handle);
+                result = bincode::encode_into_std_write(
+                    &board,
+                    &mut buf_writer,
+                    bincode::config::standard(),
+                );
 
-            match bincode::encode_into_std_write(
-                &snapshot,
-                &mut buf_writer,
-                bincode::config::standard(),
-            ) {
+                let _ = drop(boards);
+            } else {
+                let snapshot = board.get_map_snapshot();
+
+                let _ = drop(boards);
+
+                let handle = match File::create(&temp_path) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        let _ = writeln!(
+                            &mut io::stderr().lock(),
+                            "Failed to open temp file to save leaderboard backup.\n{}",
+                            err
+                        );
+                        break;
+                    }
+                };
+
+                let mut buf_writer = BufWriter::new(handle);
+
+                result = bincode::encode_into_std_write(
+                    &snapshot,
+                    &mut buf_writer,
+                    bincode::config::standard(),
+                );
+            }
+
+            match result {
                 Ok(_) => {
                     if let Err(err) =
                         std::fs::rename(&temp_path, saves_path.join(format!("{name}.board")))

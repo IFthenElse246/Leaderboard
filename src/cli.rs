@@ -1179,13 +1179,19 @@ pub fn execute_command(
 
             let _ = drop(binding);
 
-            let snapshot = cmd_arc
-                .boards
-                .lock()
-                .unwrap()
-                .get(&board_name)
-                .unwrap()
-                .get_map_snapshot(); // just so things are slowed down
+            let mut snapshot = None;
+
+            if !cmd_arc.lock_save {
+                snapshot = Some(
+                    cmd_arc
+                        .boards
+                        .lock()
+                        .unwrap()
+                        .get(&board_name)
+                        .unwrap()
+                        .get_map_snapshot(),
+                ); // just so things are slowed down
+            }
 
             let _ = writeln!(&mut stdout.lock(), "Performing update test...");
             let mut start = Instant::now();
@@ -1302,14 +1308,6 @@ pub fn execute_command(
 
             let _ = drop(snapshot);
 
-            let snapshot = cmd_arc
-                .boards
-                .lock()
-                .unwrap()
-                .get(&board_name)
-                .unwrap()
-                .get_map_snapshot();
-
             let write_start_time = start.elapsed().as_secs_f64();
 
             let _ = writeln!(&mut stdout.lock(), "Writing to file...");
@@ -1321,11 +1319,38 @@ pub fn execute_command(
                 Ok(handle) => {
                     let mut buf_writer = BufWriter::new(handle);
 
-                    if let Err(e) = bincode::encode_into_std_write(
-                        &snapshot,
-                        &mut buf_writer,
-                        bincode::config::standard(),
-                    ) {
+                    let result;
+
+                    if cmd_arc.lock_save {
+                        let boards = cmd_arc.boards.lock().unwrap();
+                        let board = boards.get(&board_name);
+
+                        result = bincode::encode_into_std_write(
+                            &board,
+                            &mut buf_writer,
+                            bincode::config::standard(),
+                        );
+
+                        let _ = drop(boards);
+                    } else {
+                        let snapshot = cmd_arc
+                            .boards
+                            .lock()
+                            .unwrap()
+                            .get(&board_name)
+                            .unwrap()
+                            .get_map_snapshot();
+
+                        result = bincode::encode_into_std_write(
+                            &snapshot,
+                            &mut buf_writer,
+                            bincode::config::standard(),
+                        );
+
+                        let _ = drop(snapshot);
+                    }
+
+                    if let Err(e) = result {
                         let _ = writeln!(
                             &mut io::stderr().lock(),
                             "Failed to serialize leaderboard:\n{e}"
@@ -1391,28 +1416,51 @@ pub fn execute_command(
 
             let _ = drop(binding);
 
-            let _ = writeln!(
-                &mut stdout.lock(),
-                "\nRESULTS:\n\
-            In a board with {size} entries...\n\
-            Updating an user's points takes roughly {:.4} ms.\n\
-            Retrieving the 25 entries before and after (total 51 entries) a user takes roughly {:.4} ms.\n\
-            Retrieving the rank of a user takes roughly {:.4} ms.\n\
-            Getting the top 50 entries takes roughly {:.4} ms.\n\
-            Getting the bottom 50 entries takes roughly {:.4} ms.\n\
-            After saving to file, everything will slow for ROUGHLY {:.4} seconds.\n\
-            Saving to file will take {:.4} seconds in total.\n\
-            Reading from file will take {:.4} seconds.\n\
-            *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a benchmark or rough reference. The read write operation tests should be completely accurate in terms of length, however.",
-                write_time * 1000.0,
-                read_time * 1000.0,
-                rank_time * 1000.0,
-                top_time * 1000.0,
-                bottom_time * 1000.0,
-                write_start_time/(write_time*(num_writes as f64))*write_file_time,
-                write_file_time,
-                read_file_time
-            );
+            if cmd_arc.lock_save {
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "\nRESULTS:\n\
+                In a board with {size} entries...\n\
+                Updating an user's points takes roughly {:.4} ms.\n\
+                Retrieving the 25 entries before and after (total 51 entries) a user takes roughly {:.4} ms.\n\
+                Retrieving the rank of a user takes roughly {:.4} ms.\n\
+                Getting the top 50 entries takes roughly {:.4} ms.\n\
+                Getting the bottom 50 entries takes roughly {:.4} ms.\n\
+                Saving to file will take {:.4} seconds. All operations on the board will halt while this is in progress.\n\
+                Reading from file will take {:.4} seconds.\n\
+                *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a benchmark or rough reference. The read write operation tests should be completely accurate in terms of length, however.",
+                    write_time * 1000.0,
+                    read_time * 1000.0,
+                    rank_time * 1000.0,
+                    top_time * 1000.0,
+                    bottom_time * 1000.0,
+                    write_file_time,
+                    read_file_time
+                );
+            } else {
+                let _ = writeln!(
+                    &mut stdout.lock(),
+                    "\nRESULTS:\n\
+                In a board with {size} entries...\n\
+                Updating an user's points takes roughly {:.4} ms.\n\
+                Retrieving the 25 entries before and after (total 51 entries) a user takes roughly {:.4} ms.\n\
+                Retrieving the rank of a user takes roughly {:.4} ms.\n\
+                Getting the top 50 entries takes roughly {:.4} ms.\n\
+                Getting the bottom 50 entries takes roughly {:.4} ms.\n\
+                After saving to file, everything will slow for ROUGHLY {:.4} seconds.\n\
+                Saving to file will take {:.4} seconds in total.\n\
+                Reading from file will take {:.4} seconds.\n\
+                *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a benchmark or rough reference. The read write operation tests should be completely accurate in terms of length, however.",
+                    write_time * 1000.0,
+                    read_time * 1000.0,
+                    rank_time * 1000.0,
+                    top_time * 1000.0,
+                    bottom_time * 1000.0,
+                    write_start_time / (write_time * (num_writes as f64)) * write_file_time,
+                    write_file_time,
+                    read_file_time
+                );
+            }
         }
         "help" => {
             let _ = writeln!(

@@ -1,4 +1,5 @@
 use bincode::Decode;
+use bincode::Encode;
 use bincode::de::Decoder;
 
 use super::Entry;
@@ -362,6 +363,21 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             size_cap: None,
         }
     }
+
+    pub fn from_map_prog(map: HashMap<K, Entry<K, V>>, prog: impl Fn(usize) -> ()) -> Self {
+        let mut tree = Tree::new();
+
+        for (_, elem) in map.iter() {
+            tree.insert(elem.clone());
+            prog(1);
+        }
+
+        Self {
+            tree: tree,
+            map: DiffMap::from_map(map),
+            size_cap: None,
+        }
+    }
 }
 
 unsafe impl<
@@ -390,5 +406,20 @@ where
         let map = bincode::Decode::decode(decoder)?;
 
         Ok(Board::from_map(map))
+    }
+}
+
+impl<K, V> Encode for Board<K, V>
+where
+    K: PartialOrd + Eq + Hash + Sized + Default + Clone + Encode,
+    V: PartialOrd + Default + ?Sized + Clone + Encode,
+{
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        bincode::Encode::encode(&self.map, encoder)?;
+
+        Ok(())
     }
 }
