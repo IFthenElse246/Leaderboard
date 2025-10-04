@@ -264,7 +264,7 @@ where
     K: Eq + Hash + Clone,
     V: Clone,
 {
-    fn get_lock<'b>(&'b self) -> RwLockReadGuard<'b, HashMap<K, V>> {
+    pub fn get_lock<'b>(&'b self) -> RwLockReadGuard<'b, HashMap<K, V>> {
         self.diff_map.map.read().unwrap()
     }
 }

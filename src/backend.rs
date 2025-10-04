@@ -22,6 +22,9 @@ pub struct Interaction<'r> {
 }
 
 pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
+
+    let save_locker = state_arc.save_locker.lock().unwrap();
+
     let stdout = io::stdout();
     let _ = writeln!(&mut stdout.lock(), "Starting backup");
 
@@ -70,6 +73,10 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
 
                 let _ = drop(boards);
 
+                let map = snapshot.get_lock().clone();
+
+                let _ = drop(snapshot);
+
                 let handle = match File::create(&temp_path) {
                     Ok(v) => v,
                     Err(err) => {
@@ -85,7 +92,7 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
                 let mut buf_writer = BufWriter::new(handle);
 
                 result = bincode::encode_into_std_write(
-                    &snapshot,
+                    map,
                     &mut buf_writer,
                     bincode::config::standard(),
                 );
@@ -117,6 +124,8 @@ pub fn save(state_arc: &Arc<AppState>, saves_path: &PathBuf) {
     }
 
     let _ = writeln!(&mut stdout.lock(), "All boards saved.");
+
+    let _ = drop(save_locker);
 }
 
 pub async fn save_loop(state_arc: Arc<AppState>, saves_path: &PathBuf) {

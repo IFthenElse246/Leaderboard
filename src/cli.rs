@@ -1140,6 +1140,8 @@ pub fn execute_command(
                 return;
             }
 
+            let save_locker = cmd_arc.save_locker.lock().unwrap();
+
             if let None = *current_user.lock().unwrap() {
                 let _ = writeln!(&mut stdout.lock(), "{SET_BOARD_PROMPT}");
                 return;
@@ -1315,6 +1317,25 @@ pub fn execute_command(
 
             let temp_path = cmd_arc.saves_path.join(format!("{board_name}_saving.test"));
 
+            let mut snapshot_clone_time = None;
+            let mut snapshot_clone = None;
+
+            if !cmd_arc.lock_save {
+                let snapshot = cmd_arc
+                    .boards
+                    .lock()
+                    .unwrap()
+                    .get(&board_name)
+                    .unwrap()
+                    .get_map_snapshot();
+
+                snapshot_clone = Some(snapshot.get_lock().clone());
+                snapshot_clone_time = Some(start.elapsed().as_secs_f64());
+                start = Instant::now();
+
+                let _ = drop(snapshot);
+            }
+
             match File::create(&temp_path) {
                 Ok(handle) => {
                     let mut buf_writer = BufWriter::new(handle);
@@ -1333,21 +1354,13 @@ pub fn execute_command(
 
                         let _ = drop(boards);
                     } else {
-                        let snapshot = cmd_arc
-                            .boards
-                            .lock()
-                            .unwrap()
-                            .get(&board_name)
-                            .unwrap()
-                            .get_map_snapshot();
+                        start = Instant::now();
 
                         result = bincode::encode_into_std_write(
-                            &snapshot,
+                            &snapshot_clone.unwrap(),
                             &mut buf_writer,
                             bincode::config::standard(),
                         );
-
-                        let _ = drop(snapshot);
                     }
 
                     if let Err(e) = result {
@@ -1367,6 +1380,14 @@ pub fn execute_command(
             };
 
             let write_file_time = start.elapsed().as_secs_f64();
+
+            let _ = writeln!(&mut stdout.lock(), "Preparing to read from file...");
+            
+            let mut binding = cmd_arc.boards.lock().unwrap();
+            let board = binding.get_mut(&interaction.user.board).unwrap();
+            board.clear();
+
+            let _ = drop(binding);
 
             let _ = writeln!(&mut stdout.lock(), "Reading from file...");
             start = Instant::now();
@@ -1410,12 +1431,6 @@ pub fn execute_command(
                 let _ = std::fs::remove_file(temp_path);
             }
 
-            let mut binding = cmd_arc.boards.lock().unwrap();
-            let board = binding.get_mut(&interaction.user.board).unwrap();
-            board.clear();
-
-            let _ = drop(binding);
-
             if cmd_arc.lock_save {
                 let _ = writeln!(
                     &mut stdout.lock(),
@@ -1438,6 +1453,7 @@ pub fn execute_command(
                     read_file_time
                 );
             } else {
+                let merge_time = write_start_time / (write_time * (num_writes as f64)) * snapshot_clone_time.unwrap();
                 let _ = writeln!(
                     &mut stdout.lock(),
                     "\nRESULTS:\n\
@@ -1447,8 +1463,9 @@ pub fn execute_command(
                 Retrieving the rank of a user takes roughly {:.4} ms.\n\
                 Getting the top 50 entries takes roughly {:.4} ms.\n\
                 Getting the bottom 50 entries takes roughly {:.4} ms.\n\
-                After saving to file, everything will slow for ROUGHLY {:.4} seconds.\n\
-                Saving to file will take {:.4} seconds in total.\n\
+                Preparing to save to file will take {:.4} seconds.\n\
+                Before writing to file, everything will slow for ROUGHLY {:.4} seconds.\n\
+                Writing to file will take {:.4} seconds in total.\n\
                 Reading from file will take {:.4} seconds.\n\
                 *Please note that these tests do not factor things in like parsing HTTP requests and thus should not be trusted entirely. These lengths were calculated by directly performing these operations and should only serve as a benchmark or rough reference. The read write operation tests should be completely accurate in terms of length, however.",
                     write_time * 1000.0,
@@ -1456,11 +1473,14 @@ pub fn execute_command(
                     rank_time * 1000.0,
                     top_time * 1000.0,
                     bottom_time * 1000.0,
-                    write_start_time / (write_time * (num_writes as f64)) * write_file_time,
+                    snapshot_clone_time.unwrap(),
+                    merge_time,
                     write_file_time,
                     read_file_time
                 );
             }
+
+            let _ = drop(save_locker);
         }
         "help" => {
             let _ = writeln!(

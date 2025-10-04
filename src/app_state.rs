@@ -36,6 +36,7 @@ pub struct AppState {
     pub lock_save: bool,
     pub boards_file: Mutex<File>,
     pub saves_path: PathBuf,
+    pub save_locker: Mutex<()>
 }
 
 impl AppState {
@@ -202,6 +203,7 @@ impl AppState {
             save_interval: json.save_interval,
             boards_file: Mutex::new(boards_file),
             saves_path: saves_path.clone(),
+            save_locker: Mutex::new(())
         }
     }
 
