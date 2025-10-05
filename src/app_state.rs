@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use crate::backend::User;
 use crate::board::{Board, Entry};
-use crate::util;
+use crate::{util, Key, Val};
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigBoard {
@@ -30,7 +30,7 @@ pub struct Config {
 }
 
 pub struct AppState {
-    pub boards: Mutex<HashMap<String, Board<i64, f64>>>,
+    pub boards: Mutex<HashMap<String, Board<Key, Val>>>,
     pub api_keys: Mutex<HashMap<String, User>>,
     pub port: usize,
     pub save_interval: u64,
@@ -85,7 +85,7 @@ impl AppState {
             let save_path = saves_path.join(format!("{name}.board"));
             let alt_path = saves_path.join(format!("{name}_saving.part"));
 
-            let mut board: Board<i64, f64>;
+            let mut board: Board<Key, Val>;
 
             if !save_path.exists() && alt_path.exists() {
                 let result = std::fs::rename(&alt_path, &save_path);
@@ -126,7 +126,7 @@ impl AppState {
 
                 let mut buf_reader = BufReader::new(save_file);
 
-                let map: HashMap<i64, Entry<i64, f64>> = match bincode::decode_from_std_read(
+                let map: HashMap<Key, Entry<Key, Val>> = match bincode::decode_from_std_read(
                     &mut buf_reader,
                     bincode::config::standard(),
                 ) {

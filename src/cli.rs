@@ -12,6 +12,8 @@ use crate::{
     app_state::AppState,
     backend::{self, Interaction, User},
     board::Board,
+    Key,
+    Val
 };
 
 fn create_interaction<'a>(
@@ -84,7 +86,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -98,7 +100,7 @@ pub fn execute_command(
             };
 
             let points = match params.get(2) {
-                Some(b) => match b.parse::<f64>() {
+                Some(b) => match b.parse::<Val>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -149,7 +151,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -182,7 +184,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -257,7 +259,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -320,7 +322,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -383,7 +385,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -563,7 +565,7 @@ pub fn execute_command(
             }
 
             let user_id = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(id) => id,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -681,7 +683,7 @@ pub fn execute_command(
             let usage_msg = "Usage: populate <count>";
 
             let count = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(v) => v,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -722,7 +724,7 @@ pub fn execute_command(
                 board.clear();
                 let _ = writeln!(&mut stdout.lock(), "Populating...");
                 for i in 0..count {
-                    let _ = board.update_entry(i + 1, i as f64);
+                    let _ = board.update_entry(i + 1, i as Val);
                 }
             }
         }
@@ -1115,7 +1117,7 @@ pub fn execute_command(
             }
 
             let size = match params.get(1) {
-                Some(b) => match b.parse::<i64>() {
+                Some(b) => match b.parse::<Key>() {
                     Ok(v) => v,
                     Err(_) => {
                         let _ = writeln!(&mut stdout.lock(), "{usage_msg}");
@@ -1176,7 +1178,7 @@ pub fn execute_command(
 
             let _ = writeln!(&mut stdout.lock(), "Populating with dummy entries...");
             for i in 0..size {
-                let _ = board.update_entry(i, i as f64);
+                let _ = board.update_entry(i, i as Val);
             }
 
             let _ = drop(binding);
@@ -1200,7 +1202,7 @@ pub fn execute_command(
             let mut elapsed;
             let mut num_writes = 0;
             let mut rng = rand::rng();
-            let id_range = Uniform::try_from(i64::MIN..=i64::MAX).unwrap();
+            let id_range = Uniform::try_from(Key::MIN..=Key::MAX).unwrap();
             let val_range = Uniform::try_from(0..size).unwrap();
 
             loop {
@@ -1212,7 +1214,7 @@ pub fn execute_command(
                 let interaction = create_interaction(current_user, cmd_arc);
                 let target_id = id_range.sample(&mut rng);
                 let target_value = val_range.sample(&mut rng);
-                let _ = backend::update_entry(&interaction, target_id, target_value as f64);
+                let _ = backend::update_entry(&interaction, target_id, target_value as Val);
 
                 num_writes += 1;
             }
@@ -1227,7 +1229,7 @@ pub fn execute_command(
 
             let _ = writeln!(&mut stdout.lock(), "Preparing...");
 
-            let ids: Vec<i64> = cmd_arc
+            let ids: Vec<Key> = cmd_arc
                 .boards
                 .lock()
                 .unwrap()
@@ -1392,7 +1394,7 @@ pub fn execute_command(
             let _ = writeln!(&mut stdout.lock(), "Reading from file...");
             start = Instant::now();
 
-            let board: Board<i64, f64>;
+            let board: Board<Key, Val>;
 
             match File::open(temp_path.clone()) {
                 Err(e) => {

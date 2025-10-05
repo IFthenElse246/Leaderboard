@@ -23,6 +23,9 @@ pub mod util;
 #[macro_use]
 extern crate rocket;
 
+pub type Key = i64;
+pub type Val = f64;
+
 #[derive(Debug)]
 pub enum RequestError {
     InvalidResult,

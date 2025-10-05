@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use crate::app_state::AppState;
 use crate::board::Entry;
+use crate::{Key, Val};
 
 #[derive(Clone)]
 pub struct User {
@@ -178,13 +179,13 @@ pub fn execute_action(
 
 #[derive(Serialize, Deserialize)]
 struct UpdReq {
-    id: i64,
-    value: f64,
+    id: Key,
+    value: Val,
 }
 
 #[derive(Serialize, Deserialize)]
 struct BasicReq {
-    id: i64
+    id: Key
 }
 
 #[derive(Serialize, Deserialize)]
@@ -201,14 +202,14 @@ struct EdgeReq {
 #[derive(Serialize, Deserialize)]
 struct AfterBeforeReq {
     count: usize,
-    id: i64
+    id: Key
 }
 
 #[derive(Serialize, Deserialize)]
 struct AroundReq {
     before: usize,
     after: usize,
-    id: i64
+    id: Key
 }
 
 #[derive(Serialize, Deserialize)]
@@ -219,18 +220,18 @@ struct RangeReq {
 
 #[derive(Serialize, Deserialize)]
 struct Response {
-    code: i64,
+    code: Key,
     message: String,
-    entry: Option<Entry<i64, f64>>,
+    entry: Option<Entry<Key, Val>>,
     rank: Option<usize>,
-    entries: Option<Vec<(usize, Entry<i64, f64>)>>
+    entries: Option<Vec<(usize, Entry<Key, Val>)>>
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct BoardResponse {
     cap: Option<usize>,
     size: usize,
-    min: Option<f64>
+    min: Option<Val>
 }
 
 pub fn execute_update(interaction: &Interaction, dat: String) -> Result<String, Status> {
@@ -485,7 +486,7 @@ pub fn execute_range(interaction: &Interaction, dat: String) -> Result<String, S
     Ok(serde_json::to_string(&get_range(interaction, json.start, json.end)).unwrap())
 }
 
-pub fn update_entry(interaction: &Interaction, id: i64, value: f64) -> Result<bool, String> {
+pub fn update_entry(interaction: &Interaction, id: Key, value: Val) -> Result<bool, String> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.update_entry(id, value)
@@ -497,25 +498,25 @@ pub fn board_info(interaction: &Interaction) -> BoardResponse {
     BoardResponse { cap: board.get_size_cap(), size: board.get_size(), min: board.get_min() }
 }
 
-pub fn remove_entry(interaction: &Interaction, id: i64) -> Option<Entry<i64, f64>> {
+pub fn remove_entry(interaction: &Interaction, id: Key) -> Option<Entry<Key, Val>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.remove_entry(&id)
 }
 
-pub fn get_points(interaction: &Interaction, id: &i64) -> Option<f64> {
+pub fn get_points(interaction: &Interaction, id: &Key) -> Option<Val> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     Some(board.get_entry(id)?.points)
 }
 
-pub fn get_entry(interaction: &Interaction, id: &i64) -> Option<Entry<i64, f64>> {
+pub fn get_entry(interaction: &Interaction, id: &Key) -> Option<Entry<Key, Val>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_entry(id).map(|v| v.clone())
 }
 
-pub fn get_entry_and_rank(interaction: &Interaction, id: &i64) -> Option<(usize, Entry<i64, f64>)> {
+pub fn get_entry_and_rank(interaction: &Interaction, id: &Key) -> Option<(usize, Entry<Key, Val>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_entry_and_rank(id)
@@ -527,13 +528,13 @@ pub fn get_size(interaction: &Interaction) -> usize {
     board.get_size()
 }
 
-pub fn get_rank(interaction: &Interaction, id: &i64) -> Option<usize> {
+pub fn get_rank(interaction: &Interaction, id: &Key) -> Option<usize> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_rank(id)
 }
 
-pub fn at_rank(interaction: &Interaction, rank: usize) -> Option<Entry<i64, f64>> {
+pub fn at_rank(interaction: &Interaction, rank: usize) -> Option<Entry<Key, Val>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.at_rank(rank)
@@ -549,7 +550,7 @@ pub fn get_top(
     interaction: &Interaction,
     count: usize,
     no_cache: bool
-) -> Vec<(usize, Entry<i64, f64>)> {
+) -> Vec<(usize, Entry<Key, Val>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_top(count, no_cache, interaction.state.cache_len)
@@ -559,7 +560,7 @@ pub fn get_bottom(
     interaction: &Interaction,
     count: usize,
     no_cache: bool
-) -> Vec<(usize, Entry<i64, f64>)> {
+) -> Vec<(usize, Entry<Key, Val>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_bottom(count, no_cache, interaction.state.cache_len)
@@ -567,9 +568,9 @@ pub fn get_bottom(
 
 pub fn get_after(
     interaction: &Interaction,
-    id: &i64,
+    id: &Key,
     count: usize,
-) -> Option<Vec<(usize, Entry<i64, f64>)>> {
+) -> Option<Vec<(usize, Entry<Key, Val>)>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_after(id, count)
@@ -577,9 +578,9 @@ pub fn get_after(
 
 pub fn get_before(
     interaction: &Interaction,
-    id: &i64,
+    id: &Key,
     count: usize,
-) -> Option<Vec<(usize, Entry<i64, f64>)>> {
+) -> Option<Vec<(usize, Entry<Key, Val>)>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_before(id, count)
@@ -587,10 +588,10 @@ pub fn get_before(
 
 pub fn get_around(
     interaction: &Interaction,
-    id: &i64,
+    id: &Key,
     before: usize,
     after: usize,
-) -> Option<Vec<(usize, Entry<i64, f64>)>> {
+) -> Option<Vec<(usize, Entry<Key, Val>)>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_around(id, before, after)
@@ -600,7 +601,7 @@ pub fn get_range(
     interaction: &Interaction,
     start: usize,
     end: usize,
-) -> Vec<(usize, Entry<i64, f64>)> {
+) -> Vec<(usize, Entry<Key, Val>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_range(start, end)
