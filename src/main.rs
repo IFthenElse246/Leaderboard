@@ -11,6 +11,7 @@ use rocket::{
     request::{FromRequest, Outcome, Request},
     tokio,
 };
+use serde::{Deserialize, Serialize};
 use std::io::{Write, stdout};
 use std::{fs::OpenOptions, sync::Arc};
 
@@ -91,6 +92,30 @@ fn range(interaction: Interaction, data: String) -> Result<String, Status> {
     execute_range(&interaction, data)
 }
 
+#[derive(Serialize, Deserialize)]
+struct BatchRequest {
+    req_type: backend::ActionType,
+    payload: String
+}
+
+#[post("/batch", format = "json", data = "<data>")]
+fn batch(interaction: Interaction, data: String) -> Result<String, Status> {
+    let json_res = serde_json::from_str::<Vec<BatchRequest>>(data.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+
+    let json = json_res.unwrap();
+
+    let mut result = Vec::with_capacity(json.len());
+
+    for req in json {
+        result.push(execute_action(req.req_type, &interaction, req.payload)?);
+    }
+
+    return Ok(serde_json::to_string(&result).unwrap());
+}
+
 #[derive(Debug)]
 pub enum ApiKeyError {
     Missing,
@@ -164,7 +189,7 @@ async fn main() -> Result<(), rocket::Error> {
     let r = rocket::build()
         .configure(rocket::Config::figment().merge(("port", port)))
         .manage(state_arc)
-        .mount("/", routes![update, remove, get, info, board_info, at_rank, top, bottom, after, before, around, range])
+        .mount("/", routes![update, remove, get, info, board_info, at_rank, top, bottom, after, before, around, range, batch])
         .attach(AdHoc::on_liftoff("Save Loop", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {

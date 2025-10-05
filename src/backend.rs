@@ -140,7 +140,7 @@ pub async fn save_loop(state_arc: Arc<AppState>, saves_path: &PathBuf) {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ActionType {
     Update,
     Remove,
