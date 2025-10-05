@@ -2,3 +2,6 @@
 ctrlc = true
 grace = 1000
 mercy = 500
+
+[default]
+address = "0.0.0.0"

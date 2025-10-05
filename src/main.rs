@@ -187,7 +187,7 @@ async fn main() -> Result<(), rocket::Error> {
     let port = port_arc.port;
 
     let r = rocket::build()
-        .configure(rocket::Config::figment().merge(("port", port)))
+        .configure(rocket::Config::figment().merge(("port", port)).merge(("address", "0.0.0.0")))
         .manage(state_arc)
         .mount(
             "/",

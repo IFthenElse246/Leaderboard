@@ -119,17 +119,4 @@ impl<V: Ord + Sized + Default> Tree<V> {
             }
         }
     }
-
-    // pub fn before<'a, 'b>(&'a self, count: usize, last_exclusive: &'b V) -> Vec<&'a V> {
-    //     if self.is_empty() {
-    //         return Vec::new();
-    //     }
-
-    //     let mut stack: Vec<StackEntry<V>> = Vec::with_capacity(self.height());
-    //     let mut ret: Vec<&'a V> = Vec::with_capacity(count);
-
-    //     loop {
-
-    //     }
-    // }
 }
