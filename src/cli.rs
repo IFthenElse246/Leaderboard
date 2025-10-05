@@ -9,11 +9,10 @@ use std::{
 use rand::distr::{Distribution, Uniform};
 
 use crate::{
+    Key, Val,
     app_state::AppState,
     backend::{self, Interaction, User},
     board::Board,
-    Key,
-    Val
 };
 
 fn create_interaction<'a>(
@@ -169,7 +168,9 @@ pub fn execute_command(
                 return;
             }
 
-            if backend::remove_entry(&create_interaction(&current_user, &cmd_arc), user_id).is_some() {
+            if backend::remove_entry(&create_interaction(&current_user, &cmd_arc), user_id)
+                .is_some()
+            {
                 let _ = writeln!(&mut stdout.lock(), "Removed {user_id}.");
             } else {
                 let _ = writeln!(&mut stdout.lock(), "{user_id} is not on the leaderboard.");
@@ -543,9 +544,10 @@ pub fn execute_command(
                 return;
             }
 
-            for entry in backend::get_bottom(&create_interaction(&current_user, &cmd_arc), count, true)
-                .iter()
-                .rev()
+            for entry in
+                backend::get_bottom(&create_interaction(&current_user, &cmd_arc), count, true)
+                    .iter()
+                    .rev()
             {
                 let _ = writeln!(
                     &mut stdout.lock(),
@@ -1384,7 +1386,7 @@ pub fn execute_command(
             let write_file_time = start.elapsed().as_secs_f64();
 
             let _ = writeln!(&mut stdout.lock(), "Preparing to read from file...");
-            
+
             let mut binding = cmd_arc.boards.lock().unwrap();
             let board = binding.get_mut(&interaction.user.board).unwrap();
             board.clear();
@@ -1455,7 +1457,8 @@ pub fn execute_command(
                     read_file_time
                 );
             } else {
-                let merge_time = write_start_time / (write_time * (num_writes as f64)) * snapshot_clone_time.unwrap();
+                let merge_time = write_start_time / (write_time * (num_writes as f64))
+                    * snapshot_clone_time.unwrap();
                 let _ = writeln!(
                     &mut stdout.lock(),
                     "\nRESULTS:\n\

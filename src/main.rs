@@ -95,7 +95,7 @@ fn range(interaction: Interaction, data: String) -> Result<String, Status> {
 #[derive(Serialize, Deserialize)]
 struct BatchRequest {
     req_type: backend::ActionType,
-    payload: String
+    payload: String,
 }
 
 #[post("/batch", format = "json", data = "<data>")]
@@ -189,7 +189,13 @@ async fn main() -> Result<(), rocket::Error> {
     let r = rocket::build()
         .configure(rocket::Config::figment().merge(("port", port)))
         .manage(state_arc)
-        .mount("/", routes![update, remove, get, info, board_info, at_rank, top, bottom, after, before, around, range, batch])
+        .mount(
+            "/",
+            routes![
+                update, remove, get, info, board_info, at_rank, top, bottom, after, before, around,
+                range, batch
+            ],
+        )
         .attach(AdHoc::on_liftoff("Save Loop", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {

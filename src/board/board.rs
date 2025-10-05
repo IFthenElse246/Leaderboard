@@ -17,16 +17,17 @@ fn current_time() -> u128 {
         .as_millis()
 }
 
-pub struct Cache<K, V> where
-K: PartialOrd + Eq + Hash + Sized + Default + Clone,
-    V: PartialOrd + Default + ?Sized + Clone
-    {
+pub struct Cache<K, V>
+where
+    K: PartialOrd + Eq + Hash + Sized + Default + Clone,
+    V: PartialOrd + Default + ?Sized + Clone,
+{
     top_cache: Option<Vec<(usize, Entry<K, V>)>>,
     bottom_cache: Option<Vec<(usize, Entry<K, V>)>>,
     top_cache_time: Instant,
     bottom_cache_time: Instant,
     top_requested: bool,
-    bottom_requested: bool
+    bottom_requested: bool,
 }
 
 pub struct Board<
@@ -36,7 +37,7 @@ pub struct Board<
     tree: Tree<Entry<K, V>>,
     map: DiffMap<K, Entry<K, V>>,
     size_cap: Option<usize>,
-    cache: Cache<K, V>
+    cache: Cache<K, V>,
 }
 
 impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Default + ?Sized + Clone>
@@ -195,10 +196,17 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         self.cache.top_cache_time.elapsed().as_secs_f64() > expire_len_secs
     }
 
-    pub fn get_top(&mut self, count: usize, no_cache: bool, expire_len_secs: f64) -> Vec<(usize, Entry<K, V>)> {
+    pub fn get_top(
+        &mut self,
+        count: usize,
+        no_cache: bool,
+        expire_len_secs: f64,
+    ) -> Vec<(usize, Entry<K, V>)> {
         self.cache.top_requested = self.cache.top_requested || !no_cache;
 
-        let cache_unusable = self.cache.top_cache.as_ref().is_none() || count <= self.cache.top_cache.as_ref().unwrap().len() || self.is_top_cache_expired(expire_len_secs);
+        let cache_unusable = self.cache.top_cache.as_ref().is_none()
+            || count <= self.cache.top_cache.as_ref().unwrap().len()
+            || self.is_top_cache_expired(expire_len_secs);
         if no_cache || cache_unusable {
             let top = self.get_top_cacheless(count);
             if self.cache.top_requested && cache_unusable {
@@ -233,10 +241,17 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         self.cache.bottom_cache_time.elapsed().as_secs_f64() > expire_len_secs
     }
 
-    pub fn get_bottom(&mut self, count: usize, no_cache: bool, expire_len_secs: f64) -> Vec<(usize, Entry<K, V>)> {
+    pub fn get_bottom(
+        &mut self,
+        count: usize,
+        no_cache: bool,
+        expire_len_secs: f64,
+    ) -> Vec<(usize, Entry<K, V>)> {
         self.cache.bottom_requested = self.cache.bottom_requested || !no_cache;
 
-        let cache_unusable = self.cache.bottom_cache.as_ref().is_none() || count <= self.cache.bottom_cache.as_ref().unwrap().len() || self.is_bottom_cache_expired(expire_len_secs);
+        let cache_unusable = self.cache.bottom_cache.as_ref().is_none()
+            || count <= self.cache.bottom_cache.as_ref().unwrap().len()
+            || self.is_bottom_cache_expired(expire_len_secs);
         if no_cache || cache_unusable {
             let bottom = self.get_bottom_cacheless(count);
             if self.cache.bottom_requested && cache_unusable {
@@ -277,7 +292,14 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: Tree::new(),
             map: DiffMap::new(),
             size_cap: None,
-            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
+            cache: Cache {
+                top_cache: None,
+                bottom_cache: None,
+                top_cache_time: Instant::now(),
+                bottom_cache_time: Instant::now(),
+                top_requested: false,
+                bottom_requested: false,
+            },
         }
     }
 
@@ -408,7 +430,14 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: tree,
             map: map,
             size_cap: None,
-            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
+            cache: Cache {
+                top_cache: None,
+                bottom_cache: None,
+                top_cache_time: Instant::now(),
+                bottom_cache_time: Instant::now(),
+                top_requested: false,
+                bottom_requested: false,
+            },
         }
     }
 
@@ -423,7 +452,14 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: tree,
             map: DiffMap::from_map(map),
             size_cap: None,
-            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
+            cache: Cache {
+                top_cache: None,
+                bottom_cache: None,
+                top_cache_time: Instant::now(),
+                bottom_cache_time: Instant::now(),
+                top_requested: false,
+                bottom_requested: false,
+            },
         }
     }
 
@@ -439,7 +475,14 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: tree,
             map: DiffMap::from_map(map),
             size_cap: None,
-            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
+            cache: Cache {
+                top_cache: None,
+                bottom_cache: None,
+                top_cache_time: Instant::now(),
+                bottom_cache_time: Instant::now(),
+                top_requested: false,
+                bottom_requested: false,
+            },
         }
     }
 

@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use crate::backend::User;
 use crate::board::{Board, Entry};
-use crate::{util, Key, Val};
+use crate::{Key, Val, util};
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigBoard {
@@ -26,7 +26,7 @@ pub struct Config {
     pub port: usize,
     pub save_interval: u64,
     pub lock_save: Option<bool>,
-    pub cache_len: f64
+    pub cache_len: f64,
 }
 
 pub struct AppState {
@@ -38,10 +38,8 @@ pub struct AppState {
     pub boards_file: Mutex<File>,
     pub saves_path: PathBuf,
     pub save_locker: Mutex<()>,
-    pub cache_len: f64
+    pub cache_len: f64,
 }
-
-
 
 impl AppState {
     pub fn new(
@@ -208,7 +206,7 @@ impl AppState {
             boards_file: Mutex::new(boards_file),
             saves_path: saves_path.clone(),
             save_locker: Mutex::new(()),
-            cache_len: json.cache_len
+            cache_len: json.cache_len,
         }
     }
 
