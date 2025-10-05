@@ -1,5 +1,6 @@
 {
     "port": 3895,
     "save_interval": 600,
-    "lock_save": false
+    "lock_save": false,
+    "cache_len": 5
 }

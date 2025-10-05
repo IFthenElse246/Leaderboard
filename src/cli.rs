@@ -167,7 +167,7 @@ pub fn execute_command(
                 return;
             }
 
-            if backend::remove_entry(&create_interaction(&current_user, &cmd_arc), user_id) {
+            if backend::remove_entry(&create_interaction(&current_user, &cmd_arc), user_id).is_some() {
                 let _ = writeln!(&mut stdout.lock(), "Removed {user_id}.");
             } else {
                 let _ = writeln!(&mut stdout.lock(), "{user_id} is not on the leaderboard.");
@@ -237,7 +237,7 @@ pub fn execute_command(
             }
 
             for entry in
-                backend::get_top(&create_interaction(&current_user, &cmd_arc), count).iter()
+                backend::get_top(&create_interaction(&current_user, &cmd_arc), count, true).iter()
             {
                 let _ = writeln!(
                     &mut stdout.lock(),
@@ -541,7 +541,7 @@ pub fn execute_command(
                 return;
             }
 
-            for entry in backend::get_bottom(&create_interaction(&current_user, &cmd_arc), count)
+            for entry in backend::get_bottom(&create_interaction(&current_user, &cmd_arc), count, true)
                 .iter()
                 .rev()
             {
@@ -1293,7 +1293,7 @@ pub fn execute_command(
             start = Instant::now();
 
             let interaction = create_interaction(current_user, cmd_arc);
-            let _ = backend::get_top(&interaction, 50);
+            let _ = backend::get_top(&interaction, 50, true);
 
             let top_time = start.elapsed().as_secs_f64();
 
@@ -1301,7 +1301,7 @@ pub fn execute_command(
             start = Instant::now();
 
             let interaction = create_interaction(current_user, cmd_arc);
-            let _ = backend::get_bottom(&interaction, 50);
+            let _ = backend::get_bottom(&interaction, 50, true);
 
             let bottom_time = start.elapsed().as_secs_f64();
 

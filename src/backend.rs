@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::app_state::AppState;
+use crate::board::Entry;
 
 #[derive(Clone)]
 pub struct User {
@@ -141,6 +142,17 @@ pub async fn save_loop(state_arc: Arc<AppState>, saves_path: &PathBuf) {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ActionType {
     Update,
+    Remove,
+    Get,
+    Info,
+    Board,
+    AtRank,
+    Top,
+    Bottom,
+    After,
+    Before,
+    Around,
+    Range
 }
 
 pub fn execute_action(
@@ -150,6 +162,17 @@ pub fn execute_action(
 ) -> Result<String, Status> {
     match action {
         ActionType::Update => execute_update(interaction, dat),
+        ActionType::Remove => execute_remove(interaction, dat),
+        ActionType::Get => execute_get(interaction, dat),
+        ActionType::Info => execute_info(interaction, dat),
+        ActionType::Board => execute_board(interaction, dat),
+        ActionType::AtRank => execute_at_rank(interaction, dat),
+        ActionType::Top => execute_top(interaction, dat),
+        ActionType::Bottom => execute_bottom(interaction, dat),
+        ActionType::After => execute_after(interaction, dat),
+        ActionType::Before => execute_before(interaction, dat),
+        ActionType::Around => execute_after(interaction, dat),
+        ActionType::Range => execute_range(interaction, dat)
     }
 }
 
@@ -159,7 +182,62 @@ struct UpdReq {
     value: f64,
 }
 
+#[derive(Serialize, Deserialize)]
+struct BasicReq {
+    id: i64
+}
+
+#[derive(Serialize, Deserialize)]
+struct AtRankReq {
+    rank: usize
+}
+
+#[derive(Serialize, Deserialize)]
+struct EdgeReq {
+    count: usize,
+    no_cache: Option<bool>
+}
+
+#[derive(Serialize, Deserialize)]
+struct AfterBeforeReq {
+    count: usize,
+    id: i64
+}
+
+#[derive(Serialize, Deserialize)]
+struct AroundReq {
+    before: usize,
+    after: usize,
+    id: i64
+}
+
+#[derive(Serialize, Deserialize)]
+struct RangeReq {
+    start: usize,
+    end: usize
+}
+
+#[derive(Serialize, Deserialize)]
+struct Response {
+    code: i64,
+    message: String,
+    entry: Option<Entry<i64, f64>>,
+    rank: Option<usize>,
+    entries: Option<Vec<(usize, Entry<i64, f64>)>>
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BoardResponse {
+    cap: Option<usize>,
+    size: usize,
+    min: Option<f64>
+}
+
 pub fn execute_update(interaction: &Interaction, dat: String) -> Result<String, Status> {
+    if !interaction.user.write {
+        return Err(Status::Forbidden)
+    }
+
     let json_res = serde_json::from_str::<UpdReq>(dat.as_str());
     if json_res.is_err() {
         return Err(Status::BadRequest);
@@ -167,11 +245,244 @@ pub fn execute_update(interaction: &Interaction, dat: String) -> Result<String, 
     let json = json_res.unwrap();
     match update_entry(interaction, json.id, json.value) {
         Ok(b) => match b {
-            true => Ok(format!("Successfully updated {0}.", json.id)),
-            false => Ok(format!("Added player {0} and updated.", json.id)),
+            true => Ok(serde_json::to_string(&Response {
+                code: 0,
+                message: format!("Successfully updated {0}.", json.id),
+                entry: None,
+                rank: None,
+                entries: None
+            }).unwrap()),
+            false => Ok(serde_json::to_string(&Response {
+                code: 1,
+                message: format!("Added player {0} and updated.", json.id),
+                entry: None,
+                rank: None,
+                entries: None
+            }).unwrap()),
         },
-        Err(v) => Ok(format!("Failed to add player {0}: {1}", json.id, v)),
+        Err(v) => Ok(serde_json::to_string(&Response {
+            code: 1,
+            message: format!("Failed to add player {0}: {1}", json.id, v),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
     }
+}
+
+pub fn execute_remove(interaction: &Interaction, dat: String) -> Result<String, Status> {
+    if !interaction.user.write {
+        return Err(Status::Forbidden)
+    }
+
+    let json_res = serde_json::from_str::<BasicReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+    match remove_entry(interaction, json.id) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Successfully removed {0}.", json.id),
+            entry: Some(v),
+            rank: None,
+            entries: None
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: 1,
+            message: format!("User {0} was already not in the board.", json.id),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_get(interaction: &Interaction, dat: String) -> Result<String, Status> {
+    let json_res = serde_json::from_str::<BasicReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+    match get_entry(interaction, &json.id) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Found user {0}.", json.id),
+            entry: Some(v),
+            rank: None,
+            entries: None
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: -1,
+            message: format!("User {0} was not in the board.", json.id),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_info(interaction: &Interaction, dat: String) -> Result<String, Status> {
+    let json_res = serde_json::from_str::<BasicReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+    match get_entry_and_rank(interaction, &json.id) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Found user {0}.", json.id),
+            entry: Some(v.1),
+            rank: Some(v.0),
+            entries: None
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: -1,
+            message: format!("User {0} was not in the board.", json.id),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_board(interaction: &Interaction, _: String) -> Result<String, Status> {
+    let res =  board_info(interaction);
+    Ok(serde_json::to_string(&res).unwrap())
+}
+
+pub fn execute_at_rank(interaction: &Interaction, dat: String) -> Result<String, Status> {
+    let json_res = serde_json::from_str::<AtRankReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    if json.rank == 0 {
+        return Err(Status::BadRequest);
+    }
+
+    match at_rank(interaction, json.rank) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Found user {0} with rank {1}.", v.key, json.rank),
+            entry: Some(v),
+            rank: Some(json.rank),
+            entries: None
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: -1,
+            message: format!("No user with rank {0}.", json.rank),
+            entry: None,
+            rank: Some(json.rank),
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_top(interaction: &Interaction, dat: String) -> Result<String, Status> {    
+    let json_res = serde_json::from_str::<EdgeReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    Ok(serde_json::to_string(&get_top(interaction, json.count, json.no_cache.is_some_and(|v| v))).unwrap())
+}
+
+pub fn execute_bottom(interaction: &Interaction, dat: String) -> Result<String, Status> {    
+    let json_res = serde_json::from_str::<EdgeReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    Ok(serde_json::to_string(&get_bottom(interaction, json.count, json.no_cache.is_some_and(|v| v))).unwrap())
+}
+
+pub fn execute_after(interaction: &Interaction, dat: String) -> Result<String, Status> {    
+    let json_res = serde_json::from_str::<AfterBeforeReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    match get_after(interaction, &json.id, json.count) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Retrieved {0} entries after {1}.", v.len(), json.id),
+            entry: None,
+            rank: None,
+            entries: Some(v)
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: -1,
+            message: format!("User {0} was not in the board.", json.id),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_before(interaction: &Interaction, dat: String) -> Result<String, Status> {    
+    let json_res = serde_json::from_str::<AfterBeforeReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    match get_before(interaction, &json.id, json.count) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Retrieved {0} entries before {1}.", v.len(), json.id),
+            entry: None,
+            rank: None,
+            entries: Some(v)
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: -1,
+            message: format!("User {0} was not in the board.", json.id),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_around(interaction: &Interaction, dat: String) -> Result<String, Status> {    
+    let json_res = serde_json::from_str::<AroundReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    match get_around(interaction, &json.id, json.before, json.after) {
+        Some(v) => Ok(serde_json::to_string(&Response {
+            code: 0,
+            message: format!("Retrieved {0} entries around {1}.", v.len(), json.id),
+            entry: None,
+            rank: None,
+            entries: Some(v)
+        }).unwrap()),
+        None => Ok(serde_json::to_string(&Response {
+            code: -1,
+            message: format!("User {0} was not in the board.", json.id),
+            entry: None,
+            rank: None,
+            entries: None
+        }).unwrap())
+    }
+}
+
+pub fn execute_range(interaction: &Interaction, dat: String) -> Result<String, Status> {    
+    let json_res = serde_json::from_str::<RangeReq>(dat.as_str());
+    if json_res.is_err() {
+        return Err(Status::BadRequest);
+    }
+    let json = json_res.unwrap();
+
+    Ok(serde_json::to_string(&get_range(interaction, json.start, json.end)).unwrap())
 }
 
 pub fn update_entry(interaction: &Interaction, id: i64, value: f64) -> Result<bool, String> {
@@ -180,10 +491,16 @@ pub fn update_entry(interaction: &Interaction, id: i64, value: f64) -> Result<bo
     board.update_entry(id, value)
 }
 
-pub fn remove_entry(interaction: &Interaction, id: i64) -> bool {
+pub fn board_info(interaction: &Interaction) -> BoardResponse {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.remove_entry(&id).is_some()
+    BoardResponse { cap: board.get_size_cap(), size: board.get_size(), min: board.get_min() }
+}
+
+pub fn remove_entry(interaction: &Interaction, id: i64) -> Option<Entry<i64, f64>> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.remove_entry(&id)
 }
 
 pub fn get_points(interaction: &Interaction, id: &i64) -> Option<f64> {
@@ -192,10 +509,16 @@ pub fn get_points(interaction: &Interaction, id: &i64) -> Option<f64> {
     Some(board.get_entry(id)?.points)
 }
 
-pub fn get_entry(interaction: &Interaction, id: &i64) -> Option<crate::board::Entry<i64, f64>> {
+pub fn get_entry(interaction: &Interaction, id: &i64) -> Option<Entry<i64, f64>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_entry(id).map(|v| v.clone())
+}
+
+pub fn get_entry_and_rank(interaction: &Interaction, id: &i64) -> Option<(usize, Entry<i64, f64>)> {
+    let mut binding = interaction.state.boards.lock().unwrap();
+    let board = binding.get_mut(&interaction.user.board).unwrap();
+    board.get_entry_and_rank(id)
 }
 
 pub fn get_size(interaction: &Interaction) -> usize {
@@ -210,7 +533,7 @@ pub fn get_rank(interaction: &Interaction, id: &i64) -> Option<usize> {
     board.get_rank(id)
 }
 
-pub fn at_rank(interaction: &Interaction, rank: usize) -> Option<crate::board::Entry<i64, f64>> {
+pub fn at_rank(interaction: &Interaction, rank: usize) -> Option<Entry<i64, f64>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.at_rank(rank)
@@ -225,26 +548,28 @@ pub fn clear(interaction: &Interaction) {
 pub fn get_top(
     interaction: &Interaction,
     count: usize,
-) -> Vec<(usize, crate::board::Entry<i64, f64>)> {
+    no_cache: bool
+) -> Vec<(usize, Entry<i64, f64>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.get_top(count)
+    board.get_top(count, no_cache, interaction.state.cache_len)
 }
 
 pub fn get_bottom(
     interaction: &Interaction,
     count: usize,
-) -> Vec<(usize, crate::board::Entry<i64, f64>)> {
+    no_cache: bool
+) -> Vec<(usize, Entry<i64, f64>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
-    board.get_bottom(count)
+    board.get_bottom(count, no_cache, interaction.state.cache_len)
 }
 
 pub fn get_after(
     interaction: &Interaction,
     id: &i64,
     count: usize,
-) -> Option<Vec<(usize, crate::board::Entry<i64, f64>)>> {
+) -> Option<Vec<(usize, Entry<i64, f64>)>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_after(id, count)
@@ -254,7 +579,7 @@ pub fn get_before(
     interaction: &Interaction,
     id: &i64,
     count: usize,
-) -> Option<Vec<(usize, crate::board::Entry<i64, f64>)>> {
+) -> Option<Vec<(usize, Entry<i64, f64>)>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_before(id, count)
@@ -265,7 +590,7 @@ pub fn get_around(
     id: &i64,
     before: usize,
     after: usize,
-) -> Option<Vec<(usize, crate::board::Entry<i64, f64>)>> {
+) -> Option<Vec<(usize, Entry<i64, f64>)>> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_around(id, before, after)
@@ -275,7 +600,7 @@ pub fn get_range(
     interaction: &Interaction,
     start: usize,
     end: usize,
-) -> Vec<(usize, crate::board::Entry<i64, f64>)> {
+) -> Vec<(usize, Entry<i64, f64>)> {
     let mut binding = interaction.state.boards.lock().unwrap();
     let board = binding.get_mut(&interaction.user.board).unwrap();
     board.get_range(start, end)

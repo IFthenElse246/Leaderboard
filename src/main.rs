@@ -1,7 +1,7 @@
 extern crate fs2;
 
 use crate::app_state::AppState;
-use crate::backend::{ActionType, Interaction, execute_action};
+use crate::backend::*;
 use fs2::FileExt;
 use rocket::tokio::fs;
 use rocket::{
@@ -29,8 +29,63 @@ pub enum RequestError {
 }
 
 #[post("/update", format = "json", data = "<data>")]
-fn test(interaction: Interaction, data: String) -> Result<String, Status> {
-    execute_action(ActionType::Update, &interaction, data)
+fn update(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_update(&interaction, data)
+}
+
+#[post("/remove", format = "json", data = "<data>")]
+fn remove(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_remove(&interaction, data)
+}
+
+#[post("/get", format = "json", data = "<data>")]
+fn get(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_get(&interaction, data)
+}
+
+#[post("/info", format = "json", data = "<data>")]
+fn info(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_info(&interaction, data)
+}
+
+#[post("/board", format = "json", data = "<data>")]
+fn board_info(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_board(&interaction, data)
+}
+
+#[post("/atrank", format = "json", data = "<data>")]
+fn at_rank(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_at_rank(&interaction, data)
+}
+
+#[post("/top", format = "json", data = "<data>")]
+fn top(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_top(&interaction, data)
+}
+
+#[post("/bottom", format = "json", data = "<data>")]
+fn bottom(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_bottom(&interaction, data)
+}
+
+#[post("/after", format = "json", data = "<data>")]
+fn after(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_after(&interaction, data)
+}
+
+#[post("/before", format = "json", data = "<data>")]
+fn before(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_before(&interaction, data)
+}
+
+#[post("/around", format = "json", data = "<data>")]
+fn around(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_around(&interaction, data)
+}
+
+#[post("/range", format = "json", data = "<data>")]
+fn range(interaction: Interaction, data: String) -> Result<String, Status> {
+    execute_range(&interaction, data)
 }
 
 #[derive(Debug)]
@@ -106,7 +161,7 @@ async fn main() -> Result<(), rocket::Error> {
     let r = rocket::build()
         .configure(rocket::Config::figment().merge(("port", port)))
         .manage(state_arc)
-        .mount("/", routes![test])
+        .mount("/", routes![update, remove, get, info, board_info, at_rank, top, bottom, after, before, around, range])
         .attach(AdHoc::on_liftoff("Save Loop", |_r| {
             Box::pin(async move {
                 tokio::spawn(async move {

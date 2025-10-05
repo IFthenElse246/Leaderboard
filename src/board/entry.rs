@@ -1,8 +1,9 @@
 use std::cmp;
 
 use bincode::{Decode, Encode, de::Decoder};
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub struct Entry<K, V>
 where
     K: PartialOrd + Default,

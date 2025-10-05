@@ -1,6 +1,7 @@
 use bincode::Decode;
 use bincode::Encode;
 use bincode::de::Decoder;
+use rocket::tokio::time::Instant;
 
 use super::Entry;
 use super::Tree;
@@ -16,6 +17,18 @@ fn current_time() -> u128 {
         .as_millis()
 }
 
+pub struct Cache<K, V> where
+K: PartialOrd + Eq + Hash + Sized + Default + Clone,
+    V: PartialOrd + Default + ?Sized + Clone
+    {
+    top_cache: Option<Vec<(usize, Entry<K, V>)>>,
+    bottom_cache: Option<Vec<(usize, Entry<K, V>)>>,
+    top_cache_time: Instant,
+    bottom_cache_time: Instant,
+    top_requested: bool,
+    bottom_requested: bool
+}
+
 pub struct Board<
     K: PartialOrd + Eq + Hash + Sized + Default + Clone = u64,
     V: PartialOrd + Default + ?Sized + Clone = f64,
@@ -23,6 +36,7 @@ pub struct Board<
     tree: Tree<Entry<K, V>>,
     map: DiffMap<K, Entry<K, V>>,
     size_cap: Option<usize>,
+    cache: Cache<K, V>
 }
 
 impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Default + ?Sized + Clone>
@@ -30,6 +44,12 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
 {
     pub fn get_entry(&self, id: &K) -> Option<Entry<K, V>> {
         return self.map.get(id);
+    }
+
+    pub fn get_entry_and_rank(&self, id: &K) -> Option<(usize, Entry<K, V>)> {
+        let entry = self.map.get(id)?;
+        let rank = self.tree.index_of(&entry).0 + 1;
+        Some((rank, entry))
     }
 
     pub fn get_tree_copy(&self) -> Tree<Entry<K, V>> {
@@ -171,7 +191,27 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         self.tree.len()
     }
 
-    pub fn get_top(&self, count: usize) -> Vec<(usize, Entry<K, V>)> {
+    pub fn is_top_cache_expired(&self, expire_len_secs: f64) -> bool {
+        self.cache.top_cache_time.elapsed().as_secs_f64() > expire_len_secs
+    }
+
+    pub fn get_top(&mut self, count: usize, no_cache: bool, expire_len_secs: f64) -> Vec<(usize, Entry<K, V>)> {
+        self.cache.top_requested = self.cache.top_requested || !no_cache;
+
+        let cache_unusable = self.cache.top_cache.as_ref().is_none() || count <= self.cache.top_cache.as_ref().unwrap().len() || self.is_top_cache_expired(expire_len_secs);
+        if no_cache || cache_unusable {
+            let top = self.get_top_cacheless(count);
+            if self.cache.top_requested && cache_unusable {
+                self.cache.top_cache = Some(top.clone());
+                self.cache.top_cache_time = Instant::now();
+            }
+            top
+        } else {
+            self.cache.top_cache.as_ref().unwrap()[0..count].to_vec()
+        }
+    }
+
+    pub fn get_top_cacheless(&self, count: usize) -> Vec<(usize, Entry<K, V>)> {
         let mut ret = Vec::with_capacity(count);
 
         let mut cursor = self.tree.cursor();
@@ -189,7 +229,27 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         return ret;
     }
 
-    pub fn get_bottom(&self, count: usize) -> Vec<(usize, Entry<K, V>)> {
+    pub fn is_bottom_cache_expired(&self, expire_len_secs: f64) -> bool {
+        self.cache.bottom_cache_time.elapsed().as_secs_f64() > expire_len_secs
+    }
+
+    pub fn get_bottom(&mut self, count: usize, no_cache: bool, expire_len_secs: f64) -> Vec<(usize, Entry<K, V>)> {
+        self.cache.bottom_requested = self.cache.bottom_requested || !no_cache;
+
+        let cache_unusable = self.cache.bottom_cache.as_ref().is_none() || count <= self.cache.bottom_cache.as_ref().unwrap().len() || self.is_bottom_cache_expired(expire_len_secs);
+        if no_cache || cache_unusable {
+            let bottom = self.get_bottom_cacheless(count);
+            if self.cache.bottom_requested && cache_unusable {
+                self.cache.bottom_cache = Some(bottom.clone());
+                self.cache.bottom_cache_time = Instant::now();
+            }
+            bottom
+        } else {
+            self.cache.bottom_cache.as_ref().unwrap()[0..count].to_vec()
+        }
+    }
+
+    pub fn get_bottom_cacheless(&self, count: usize) -> Vec<(usize, Entry<K, V>)> {
         let mut ret = Vec::with_capacity(count);
 
         let mut cursor = self.tree.cursor();
@@ -217,6 +277,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: Tree::new(),
             map: DiffMap::new(),
             size_cap: None,
+            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
         }
     }
 
@@ -347,6 +408,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: tree,
             map: map,
             size_cap: None,
+            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
         }
     }
 
@@ -361,6 +423,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: tree,
             map: DiffMap::from_map(map),
             size_cap: None,
+            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
         }
     }
 
@@ -376,7 +439,13 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
             tree: tree,
             map: DiffMap::from_map(map),
             size_cap: None,
+            cache: Cache { top_cache: None, bottom_cache: None, top_cache_time: Instant::now(), bottom_cache_time: Instant::now(), top_requested: false, bottom_requested: false }
         }
+    }
+
+    pub fn get_min(&self) -> Option<V> {
+        let mut c = self.tree.cursor();
+        Some(c.move_next()?.points.clone())
     }
 }
 

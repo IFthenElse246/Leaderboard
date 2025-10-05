@@ -26,6 +26,7 @@ pub struct Config {
     pub port: usize,
     pub save_interval: u64,
     pub lock_save: Option<bool>,
+    pub cache_len: f64
 }
 
 pub struct AppState {
@@ -36,8 +37,11 @@ pub struct AppState {
     pub lock_save: bool,
     pub boards_file: Mutex<File>,
     pub saves_path: PathBuf,
-    pub save_locker: Mutex<()>
+    pub save_locker: Mutex<()>,
+    pub cache_len: f64
 }
+
+
 
 impl AppState {
     pub fn new(
@@ -203,7 +207,8 @@ impl AppState {
             save_interval: json.save_interval,
             boards_file: Mutex::new(boards_file),
             saves_path: saves_path.clone(),
-            save_locker: Mutex::new(())
+            save_locker: Mutex::new(()),
+            cache_len: json.cache_len
         }
     }
 

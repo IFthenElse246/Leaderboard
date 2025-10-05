@@ -3,9 +3,6 @@ mod diff_map;
 mod entry;
 mod tree;
 
-#[allow(unused_imports)]
-mod test;
-
 pub use board::Board;
 pub use entry::Entry;
 pub use tree::Tree;
