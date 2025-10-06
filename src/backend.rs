@@ -263,7 +263,7 @@ pub fn execute_update(interaction: &Interaction, dat: String) -> Result<String, 
             .unwrap()),
         },
         Err(v) => Ok(serde_json::to_string(&Response {
-            code: 1,
+            code: -1,
             message: format!("Failed to add player {0}: {1}", json.id, v),
             entry: None,
             rank: None,
