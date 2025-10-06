@@ -9,7 +9,7 @@ where
     K: PartialOrd + Default,
     V: PartialOrd + Sized + Default,
 {
-    pub timestamp: u128,
+    pub timestamp: f64,
     pub points: V,
     pub key: K,
 }
@@ -29,12 +29,12 @@ impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> PartialOrd for En
 impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> Ord for Entry<K, V> {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         match self.points.partial_cmp(&other.points) {
-            Some(cmp::Ordering::Equal) | None => match other.timestamp.cmp(&self.timestamp) {
-                cmp::Ordering::Equal => match other.key.partial_cmp(&self.key) {
+            Some(cmp::Ordering::Equal) | None => match other.timestamp.partial_cmp(&self.timestamp) {
+                None | Some(cmp::Ordering::Equal) => match other.key.partial_cmp(&self.key) {
                     None => cmp::Ordering::Equal,
                     Some(v) => v,
                 },
-                v => v,
+                Some(v) => v,
             },
             Some(v) => v,
         }
@@ -44,7 +44,7 @@ impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> Ord for Entry<K, 
 impl<K: PartialOrd + Default, V: PartialOrd + Sized + Default> Default for Entry<K, V> {
     fn default() -> Self {
         Self {
-            timestamp: 0,
+            timestamp: 0 as f64,
             points: V::default(),
             key: K::default(),
         }

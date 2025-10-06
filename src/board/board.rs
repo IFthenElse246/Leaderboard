@@ -10,11 +10,11 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn current_time() -> u128 {
+fn current_time() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_millis()
+        .as_secs_f64()
 }
 
 pub struct Cache<K, V>
