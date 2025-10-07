@@ -171,7 +171,7 @@ pub fn execute_action(
         ActionType::Bottom => execute_bottom(interaction, dat),
         ActionType::After => execute_after(interaction, dat),
         ActionType::Before => execute_before(interaction, dat),
-        ActionType::Around => execute_after(interaction, dat),
+        ActionType::Around => execute_around(interaction, dat),
         ActionType::Range => execute_range(interaction, dat),
     }
 }
