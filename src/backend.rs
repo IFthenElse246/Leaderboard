@@ -509,6 +509,10 @@ pub fn execute_range(interaction: &Interaction, dat: String) -> Result<String, S
     }
     let json = json_res.unwrap();
 
+    if json.start == 0 || json.end == 0 {
+        return Err(Status::BadRequest)
+    }
+
     Ok(serde_json::to_string(&get_range(interaction, json.start, json.end)).unwrap())
 }
 
