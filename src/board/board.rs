@@ -205,7 +205,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         self.cache.top_requested = self.cache.top_requested || !no_cache;
 
         let cache_unusable = self.cache.top_cache.as_ref().is_none()
-            || count <= self.cache.top_cache.as_ref().unwrap().len()
+            || count > self.cache.top_cache.as_ref().unwrap().len()
             || self.is_top_cache_expired(expire_len_secs);
         if no_cache || cache_unusable {
             let top = self.get_top_cacheless(count);
@@ -250,7 +250,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
         self.cache.bottom_requested = self.cache.bottom_requested || !no_cache;
 
         let cache_unusable = self.cache.bottom_cache.as_ref().is_none()
-            || count <= self.cache.bottom_cache.as_ref().unwrap().len()
+            || count > self.cache.bottom_cache.as_ref().unwrap().len()
             || self.is_bottom_cache_expired(expire_len_secs);
         if no_cache || cache_unusable {
             let bottom = self.get_bottom_cacheless(count);
