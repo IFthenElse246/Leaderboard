@@ -327,7 +327,7 @@ impl<K: PartialOrd + Eq + Hash + Sized + Default + Clone, V: PartialOrd + Defaul
 
         ret.reverse();
 
-        ret.push((cursor.get_index()?, cursor.get_value().unwrap().clone()));
+        ret.push((cursor.get_index()? + 1, cursor.get_value().unwrap().clone()));
 
         for _i in 0..after {
             let val = cursor.move_prev();
