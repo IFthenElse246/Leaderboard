@@ -219,7 +219,7 @@ struct RangeReq {
 
 #[derive(Serialize, Deserialize)]
 struct Response {
-    code: Key,
+    code: i64,
     message: String,
     entry: Option<Entry<Key, Val>>,
     rank: Option<usize>,
