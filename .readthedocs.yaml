@@ -3,4 +3,6 @@ version: 2
 
 build:
   tools:
-    rust: "1.90"
+    rust: "1.86"
+  commands:
+    - cargo build
